@@ -7,25 +7,28 @@ This file is the contract every module follows. If code and this file disagree, 
 | Module | The one idea it holds |
 |---|---|
 | `models.py` | Data only: `Request`, `Passenger`, `Elevator`, `Event`, `Result`, `Direction` |
-| `config.py` | Building and elevator bank settings, checked on creation |
+| `config.py` | Building and elevator bank settings, including the floors each elevator serves, checked on creation |
 | `direction.py` | Direction logic for one elevator: collective control, boarding, dwell time |
 | `scheduler.py` | The scheduler picks the elevator for a new passenger: round robin, nearest car, lowest cost |
-| `simulation.py` | The clock: reveal requests, assign them, log positions, move elevators |
+| `simulation.py` | The clock: reveal requests, offer each the elevators that serve its trip, assign, log positions, move elevators |
 | `traffic.py` | Synthetic passengers: traffic patterns, demand levels, daily profiles |
 | `files.py` | Read the request file, write the two log files |
 | `stats.py` | Summary numbers for a finished run |
 | `invariants.py` | Checks that a finished run obeyed every rule |
 | `scenarios.py` | The named extreme scenarios and the comparison report |
-| `cli.py` | The command line |
+| `cli.py` | The command line: `run`, `compare`, `fairness` |
+| `extensions/zoning.py` | The zoned scheduler: bands of floors above the lobby, lowest cost inside a band |
+| `extensions/express.py` | Express layouts for `Config.served_floors`: `express_bank` and `servable` |
+| `extensions/fairness.py` | The fairness against efficiency study for lowest cost |
 
-Dependencies point one way: `models` and `config` at the bottom, `direction` above them, `scheduler` and `simulation` above that, `scenarios` and `cli` on top.
+Dependencies point one way: `models` and `config` at the bottom, `direction` above them, `scheduler` and `simulation` above that, `scenarios` and `cli` on top. `zoning` sits beside `scheduler` (which builds it by name), `express` below `scenarios`, and `fairness` between `scenarios` and `cli`.
 
 ## One time unit
 
 Time moves in whole time units. One time unit is the time an elevator takes to travel one floor. At time `t`:
 
 1. **Reveal.** Requests with `time == t` become visible, in input order. Nothing later is visible.
-2. **Assign.** For each revealed request, the scheduler picks an elevator. The passenger joins that elevator's `waiting` list. Event `assigned` at `t`.
+2. **Assign.** For each revealed request, the scheduler picks among the elevators that serve both its origin and destination floors (`simulation.eligible`; every elevator, unless `Config.served_floors` says otherwise). If none does, the run raises `ValueError` naming the passenger. The passenger joins that elevator's `waiting` list. Event `assigned` at `t`.
 3. **Log.** Row `t` of the elevator positions log records each elevator's floor at time `t`.
 4. **Step.** Each elevator, in index order, runs `direction.step(elevator, t, config)`:
    1. **Unload** passengers in the elevator whose destination floor is this floor. Event `arrived` at `t`.
@@ -59,6 +62,11 @@ Interface (`Scheduler`): `assign(passenger, elevators, now) -> elevator index`. 
   - moving up: `s - f` if `pd` is up and `s >= f`; `(top - f) + (top - s)` if `pd` is down; else `(top - f) + (top - bot) + (s - bot)`
   - moving down: the mirror image.
 - **lowest-cost:** a trial allocation on each elevator, twice, with and without the new passenger, using `direction.run_until_idle` on copies. The trial allocation uses the same code that moves the real elevator. Its cost (`trial_cost`) is the sum, over every passenger on that elevator, of total time plus `penalty * max(0, wait - max_wait)`. The elevator with the smallest `incremental_cost` (with minus without) wins. Defaults: `max_wait = 3 * (floors - 1)` (`Config.default_max_wait`), which is 57 for 20 floors, and `penalty = 1000` per time unit past the maximum wait time. `max_wait = None` turns the maximum wait time off.
+- **zoned** (`extensions/zoning.py`): the floors above the lobby split into equal bands, one per elevator; with fewer floors above the lobby than elevators, each floor is a band and equal groups of elevators share one. A passenger's band holds their non-lobby floor: the destination for trips up from the lobby, the origin for trips down to it, the destination for interfloor trips. Among the offered elevators of that band, the lowest `incremental_cost` wins; if the served-floor filter left none of them, lowest cost picks among all offered.
+
+## Express elevators
+
+`Config.served_floors` holds one set of floors per elevator; `None`, the default, means every floor. An elevator never boards or lets off anyone at a floor outside its set, because it is only offered passengers whose origin and destination floors it serves. It may still pass those floors. `express_bank(floors, local, express, split)` builds the usual layout: local elevators serve 1 to `split`, express elevators serve 1 and `split + 1` to `floors`.
 
 ## Demand
 

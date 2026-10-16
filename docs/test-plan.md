@@ -16,6 +16,9 @@ Every test is written first and seen to fail (red), then the code makes it pass 
 | Invariants | `tests/test_invariants.py` | The rule checker catches each kind of broken run |
 | Scenarios | `tests/test_scenarios.py` | Every extreme scenario runs to the end and obeys every rule |
 | Command line | `tests/test_cli.py` | The command reads a file and writes the two logs and a summary; the earlier flags still work |
+| Zoned scheduler | `tests/extensions/test_zoning.py` | The band split, the choice inside a band, and that zoned runs obey every rule |
+| Express elevators | `tests/extensions/test_express.py` | The served-floor filter, the error for a trip no elevator serves, both 40-floor scenarios, and no stop at an unserved floor |
+| Fairness study | `tests/extensions/test_fairness.py` | The table shape, and that the default maximum wait time trades mean total time for a shorter longest wait |
 
 ## Extremes
 
@@ -34,6 +37,7 @@ Not every cell is run: 4 x 4 x 6 x 3 is 288 runs. The scenario tests pick these:
 - Each elevator bank in the typical building at 80% demand.
 - The four corners: smallest elevator bank in the tallest building, largest elevator bank in the small building, both at 100%.
 - The variable profile: quiet, up-peak at 120%, interfloor at 50%, down-peak at 100%, quiet.
+- Express: 40 floors, 4 elevators of 10, 100% up-peak, once with every elevator serving every floor and once with 2 local (1 to 20) and 2 express (1 and 21 to 40). Both drop the trips the express layout cannot carry, so they share their passengers.
 
 Fast runs use a horizon of 200 to 400 time units. Runs marked `slow` use longer horizons, and `pytest -m "not slow"` skips them.
 
@@ -48,6 +52,7 @@ Fast runs use a horizon of 200 to 400 time units. Runs marked `slow` use longer 
 7. **Direction.** A passenger rides only in their own direction. An elevator with passengers in it never reverses.
 8. **Final assignment.** A passenger boards the elevator they were assigned.
 9. **No early stop.** The run ends only when every elevator is empty and has no waiting passengers.
+10. **Served floors.** An elevator boards or lets off passengers only at floors it serves.
 
 ## Expected results, checked as tests
 
