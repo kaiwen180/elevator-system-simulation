@@ -1,4 +1,4 @@
-"""The scheduler picks the elevator for a new passenger: round robin, nearest car or lowest cost."""
+"""The scheduler picks the elevator for a new passenger: round robin, nearest car or lowest cost; zoned is in extensions."""
 
 from __future__ import annotations
 
@@ -133,11 +133,14 @@ class LowestCost:
 
 
 SCHEDULERS = ("round-robin", "nearest-car", "lowest-cost")
-NAMES = SCHEDULERS + ("lowest-cost-nocap",)
+NAMES = SCHEDULERS + ("lowest-cost-nocap", "zoned")
 
 
 def make_scheduler(name: str, config: Config) -> Scheduler:
     """Build a scheduler by name; `lowest-cost-nocap` turns the maximum wait time off."""
+    if name == "zoned":
+        from .extensions.zoning import Zoned  # imported here because zoning builds on LowestCost above
+        return Zoned(config)
     if name == "round-robin":
         return RoundRobin(config)
     if name == "nearest-car":

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from .config import Config
+from .extensions.express import express_bank, servable
 from .scheduler import make_scheduler
 from .models import Request, Result
 from .simulation import Simulation
@@ -16,6 +17,8 @@ SMALLEST_HORIZON = 1000
 TALLEST_SMALLEST_HORIZON = 1500
 LARGEST_SMALL_HORIZON = 200
 DAILY_SCALE = 60
+EXPRESS_FLOORS = 40
+EXPRESS_SPLIT = 20
 
 BUILDINGS = {"small": 5, "typical": 20, "tall": 60, "tallest": 160}
 BANKS = {"smallest": (1, 1), "small": (2, 4), "typical": (4, 10), "largest": (10, 20)}
@@ -34,10 +37,14 @@ class Scenario:
     config: Config
     segments: tuple[Segment, ...]
     seed: int = 1
+    trips_within: tuple[frozenset[int], ...] | None = None  # drop trips this served-floor layout cannot carry
 
     def requests(self) -> list[Request]:
         """The scenario's passengers, the same every time for the same seed."""
-        return generate(self.config, list(self.segments), self.seed)
+        requests = generate(self.config, list(self.segments), self.seed)
+        if self.trips_within is None:
+            return requests
+        return servable(requests, replace(self.config, served_floors=self.trips_within))
 
 
 def scenario_name(config: Config, demand: float, pattern: str) -> str:
@@ -59,6 +66,19 @@ def daily() -> Scenario:
     return Scenario(name, config, tuple(daily_profile(DAILY_SCALE)))
 
 
+def express_pair() -> list[Scenario]:
+    """40 floors, 4 elevators of 10, 100% up-peak: all 4 serve every floor, then 2 local and 2 express."""
+    layout = express_bank(EXPRESS_FLOORS, local=2, express=2, split=EXPRESS_SPLIT)
+    config = Config(floors=EXPRESS_FLOORS, elevators=4, capacity=10)
+    name = scenario_name(config, 1.0, "up-peak")
+    segments = (Segment(HORIZON, 1.0, "up-peak"),)
+    # Both runs drop the trips between the low and high floors, so they share their passengers.
+    return [
+        Scenario(f"{name}-all-floors", config, segments, trips_within=layout),
+        Scenario(f"{name}-express", replace(config, served_floors=layout), segments, trips_within=layout),
+    ]
+
+
 def scenario_list() -> list[Scenario]:
     """The cells of the test plan's matrix that the tests run, in report order."""
     chosen = []
@@ -77,6 +97,7 @@ def scenario_list() -> list[Scenario]:
     for demand in (0.8, 1.0, 1.2):
         chosen.append(steady("typical", "typical", demand, pattern="up-peak"))
     chosen.append(daily())
+    chosen += express_pair()
     return chosen
 
 

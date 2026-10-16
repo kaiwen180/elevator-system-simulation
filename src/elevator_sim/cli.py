@@ -1,4 +1,4 @@
-"""Command line: run a request file, or compare the named scenarios."""
+"""Command line: run a request file, compare the named scenarios, or print the fairness study."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import argparse
 import sys
 
 from .config import Config
+from .extensions.fairness import DEFAULT_SCENARIOS, fairness_study, fairness_table
 from .scheduler import NAMES, SCHEDULERS, make_scheduler
 from .files import read_requests, write_logs
 from .models import Request
@@ -18,7 +19,7 @@ BAD_INPUT = 2
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """The two subcommands, run and compare, with their options."""
+    """The three subcommands, run, compare and fairness, with their options."""
     parser = argparse.ArgumentParser(prog="elevator-sim", description="Destination dispatch elevator simulation.")
     commands = parser.add_subparsers(dest="command", required=True)
 
@@ -38,6 +39,9 @@ def build_parser() -> argparse.ArgumentParser:
     comparison.add_argument("--scenario", action="append", help="repeat to pick several; default: every scenario")
     comparison.add_argument("--scheduler", action="append", choices=NAMES, help="default: the 3 main schedulers")
     add_old_flag(comparison, "--dispatcher", "scheduler", action="append", choices=NAMES)
+
+    fairness = commands.add_parser("fairness", help="print the fairness against efficiency study for lowest cost")
+    fairness.add_argument("--scenario", action="append", help="repeat to pick several; default: 100%% interfloor and up-peak")
     return parser
 
 
@@ -77,12 +81,20 @@ def run_compare(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_fairness(args: argparse.Namespace) -> int:
+    """Print the fairness study for the chosen scenarios."""
+    print(fairness_table(fairness_study(args.scenario or list(DEFAULT_SCENARIOS))))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Parse the arguments and run the chosen subcommand; bad input exits 2."""
     args = build_parser().parse_args(argv)
     try:
         if args.command == "run":
             return run_file(args)
+        if args.command == "fairness":
+            return run_fairness(args)
         return run_compare(args)
     except (ValueError, OSError) as error:
         print(f"error: {error}", file=sys.stderr)

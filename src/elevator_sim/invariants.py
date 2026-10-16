@@ -195,6 +195,15 @@ def check_no_early_stop(result: Result) -> list[str]:
     return problems
 
 
+def check_served_floors(events: list[Event], config: Config) -> list[str]:
+    """Rule 10: an elevator boards or lets off passengers only at floors it serves."""
+    problems = []
+    for event in events:
+        if event.kind != "assigned" and not config.serves(event.elevator, event.floor):
+            problems.append(f"{event.passenger}: {event.kind} at floor {event.floor}, which elevator {event.elevator} does not serve")
+    return problems
+
+
 def violations(result: Result, requests: list[Request], config: Config) -> list[str]:
     """Every broken rule, one readable line each; empty when the run is valid."""
     grouped = events_by_passenger(result.events)
@@ -208,6 +217,7 @@ def violations(result: Result, requests: list[Request], config: Config) -> list[
     found += check_direction(result, requests, grouped)
     found += check_final_assignment(requests, grouped)
     found += check_no_early_stop(result)
+    found += check_served_floors(result.events, config)
     return found
 
 

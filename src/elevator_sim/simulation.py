@@ -16,6 +16,13 @@ def reveal_schedule(passengers: list[Passenger]) -> dict[int, list[Passenger]]:
     return schedule
 
 
+def eligible(config: Config, p: Passenger, elevators: list[Elevator]) -> list[Elevator]:
+    """The elevators that serve both the passenger's origin and destination floors; every scheduler picks among them."""
+    if config.served_floors is None:
+        return elevators
+    return [elevator for elevator in elevators if config.serves(elevator.index, p.source, p.dest)]
+
+
 def all_idle(elevators: list[Elevator]) -> bool:
     """True when no elevator has passengers in it or waiting for it."""
     for elevator in elevators:
@@ -37,8 +44,11 @@ class Simulation:
                     raise ValueError(f"request {r.id}: floor {floor} is outside 1..{self.config.floors}")
 
     def assign(self, p: Passenger, elevators: list[Elevator], now: int, events: list[Event]) -> None:
-        """Ask the scheduler for an elevator and put the passenger on its waiting list."""
-        index = self.scheduler.assign(p, elevators, now)
+        """Ask the scheduler for an elevator that serves the trip and put the passenger on its waiting list."""
+        offered = eligible(self.config, p, elevators)
+        if not offered:
+            raise ValueError(f"passenger {p.id}: no elevator serves both floor {p.source} and floor {p.dest}")
+        index = offered[self.scheduler.assign(p, offered, now)].index
         p.elevator = index
         p.assigned_at = now
         elevators[index].waiting.append(p)
