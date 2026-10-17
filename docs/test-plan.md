@@ -18,6 +18,8 @@ Every test is written first and seen to fail (red), then the code makes it pass 
 | Command line | `tests/test_cli.py` | The command reads a file and writes the two logs and a summary; the earlier flags still work |
 | Zoned scheduler | `tests/extensions/test_zoning.py` | The band split, the choice inside a band, and that zoned runs obey every rule |
 | Express elevators | `tests/extensions/test_express.py` | The served-floor filter, the error for a trip no elevator serves, both 40-floor scenarios, and no stop at an unserved floor |
+| Trace | `tests/test_trace.py` | Traces match `Simulation.run`, each assignment's scores pick the scheduler's elevator, bad parameters are refused, the presets match the named scenarios |
+| Server | `tests/test_server.py` | Each route on a free port: 200 and 400 cases, 127.0.0.1 only, and no request log unless both the flag and the environment allow it |
 | Fairness study | `tests/extensions/test_fairness.py` | The table shape, and that the default maximum wait time trades mean total time for a shorter longest wait |
 
 ## Extremes

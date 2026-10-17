@@ -37,6 +37,17 @@ Total       36   41.3    38    50    50
 Served per elevator: elevator1 2, elevator2 1
 ```
 
+## Live UI
+
+An interactive page, driven by the same engine, for showing each scheduler at work. Each assignment shows every elevator's score and the winner.
+
+```
+uv run elevator-sim serve --port 8080
+uv run elevator-sim trace --scenario 20f-4x10-demand100-up-peak --scheduler nearest-car --scheduler lowest-cost -o trace.json
+```
+
+`serve` listens on 127.0.0.1 only: open `http://127.0.0.1:8080/`, pick a preset or set the sliders, choose up to 3 schedulers, and press Run. `trace` writes the same JSON the server returns; open `src/elevator_sim/ui/index.html` as a file and load or paste it. Screenshots: `docs/screenshots/rush-hour-assignment.png`, `docs/screenshots/rush-hour-results.png`, `docs/screenshots/two-elevators-q.png`.
+
 ## How it works
 
 At each time unit `t`:
@@ -150,7 +161,6 @@ Dwell time is 0. With one elevator every scheduler makes the same choice, so the
 - Price waiting on a rising curve instead of a step penalty at the maximum wait time.
 - Cache the trial allocation without the new passenger, which every elevator recomputes per request.
 - Add energy (floors traveled, starts and stops) as a cost term.
-- Draw charts of the wait time distribution for each scheduler.
 
 ## Time spent
 
@@ -170,7 +180,10 @@ About 3 hours: design and test plan about 1 hour, test-first build about 1.5 hou
 | `src/elevator_sim/stats.py` | Summary numbers for a finished run |
 | `src/elevator_sim/invariants.py` | The 10 rules every run must obey |
 | `src/elevator_sim/scenarios.py` | The named scenarios and the comparison table |
-| `src/elevator_sim/cli.py` | The `run`, `compare` and `fairness` commands |
+| `src/elevator_sim/cli.py` | The `run`, `compare`, `fairness`, `trace` and `serve` commands |
+| `src/elevator_sim/trace.py` | Runs as JSON for the live page: time units, each assignment's scores, summary metrics, parameter checks |
+| `src/elevator_sim/server.py` | The live page's server on 127.0.0.1: `GET /`, `GET /api/scenarios`, `POST /api/run` |
+| `src/elevator_sim/ui/index.html` | The live page, self-contained |
 | `src/elevator_sim/extensions/zoning.py` | The zoned scheduler and its band split |
 | `src/elevator_sim/extensions/express.py` | Express layouts: `express_bank` and `servable` |
 | `src/elevator_sim/extensions/fairness.py` | The fairness against efficiency study and its table |

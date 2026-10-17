@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 from .config import Config
 from .scheduler import Scheduler
 from .models import Elevator, Event, Passenger, Request, Result
 from .direction import step
+
+Watch = Callable[[int, list[Elevator], list[Event]], None]  # called after every elevator steps in a time unit
 
 
 def reveal_schedule(passengers: list[Passenger]) -> dict[int, list[Passenger]]:
@@ -54,8 +58,8 @@ class Simulation:
         elevators[index].waiting.append(p)
         events.append(Event(now, p.id, index, p.source, "assigned"))
 
-    def run(self, requests: list[Request], max_time_units: int = 1_000_000) -> Result:
-        """Run until every request is served; raise RuntimeError past `max_time_units`."""
+    def run(self, requests: list[Request], max_time_units: int = 1_000_000, watch: Watch | None = None) -> Result:
+        """Run until every request is served; raise RuntimeError past `max_time_units`; `watch` sees each time unit."""
         self.check_floors(requests)
         passengers = [Passenger(r) for r in requests]
         schedule = reveal_schedule(passengers)
@@ -70,6 +74,8 @@ class Simulation:
             positions.append([elevator.floor for elevator in elevators])
             for elevator in elevators:
                 step(elevator, now, self.config, events)
+            if watch is not None:
+                watch(now, elevators, events)
             if revealed == len(passengers) and all_idle(elevators):
                 return Result(passengers, positions, events)
         raise RuntimeError(f"run did not finish within {max_time_units} time units")

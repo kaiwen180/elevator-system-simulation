@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dispatch Live</title>
+<style>
+:root { --bg: #16171b; --panel: #1b1d22; --ink: #eceae6; --muted: #a19d97; --dim: #55585f; --line: #3a3d46; --stop: #facc15; --bad: #f87171; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+#stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; background: var(--bg); color: var(--ink); font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; font-size: 28px; overflow: hidden; }
+svg text { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; }
+#controls { position: absolute; left: 0; top: 0; width: 600px; height: 1080px; padding: 18px 24px; background: var(--panel); border-right: 3px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+#pic { position: absolute; left: 600px; top: 0; }
+button { font-family: inherit; font-size: 28px; font-weight: 600; color: var(--ink); background: #1f2128; border: 3px solid var(--line); border-radius: 12px; padding: 6px 16px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--muted); }
+button:disabled, .row.off { opacity: 0.4; cursor: default; }
+button.on { border-color: var(--stop); color: var(--stop); }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.grid button { padding: 6px 8px; }
+.row { display: grid; grid-template-columns: 160px 1fr 140px; align-items: center; gap: 12px; height: 46px; }
+.row label { color: var(--muted); white-space: nowrap; }
+.row output { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.seg { display: flex; gap: 8px; }
+.seg button { flex: 1; padding: 6px 4px; }
+input[type=range] { width: 100%; height: 34px; accent-color: var(--stop); cursor: pointer; margin: 0; }
+input[type=range]:disabled { cursor: default; }
+.head { color: var(--muted); font-weight: 700; margin-top: 4px; }
+#run { font-size: 34px; padding: 10px; border-color: var(--stop); color: var(--stop); }
+#note { color: var(--muted); line-height: 1.25; min-height: 36px; }
+#note.err { color: var(--bad); }
+#bar { position: absolute; left: 620px; top: 1000px; width: 1280px; height: 66px; display: flex; align-items: center; gap: 12px; }
+#scrub { position: absolute; left: 620px; top: 958px; width: 1280px; }
+#count { color: var(--muted); font-variant-numeric: tabular-nums; margin-left: auto; white-space: nowrap; }
+#paste { position: absolute; left: 640px; top: 120px; width: 1240px; height: 820px; padding: 24px; background: var(--panel); border: 3px solid var(--line); border-radius: 16px; display: none; flex-direction: column; gap: 16px; }
+#paste.open { display: flex; }
+#paste textarea { flex: 1; font: 28px ui-monospace, Menlo, monospace; color: var(--ink); background: var(--bg); border: 3px solid var(--line); border-radius: 12px; padding: 12px; resize: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+<div id="controls">
+  <div class="grid" id="presets"></div>
+  <div class="row"><label for="floors">floors</label><input id="floors" type="range" min="5" max="60" value="20"><output id="floors-v"></output></div>
+  <div class="row"><label for="elevators">elevators</label><input id="elevators" type="range" min="1" max="10" value="4"><output id="elevators-v"></output></div>
+  <div class="row"><label for="capacity">capacity</label><input id="capacity" type="range" min="1" max="20" value="10"><output id="capacity-v"></output></div>
+  <div class="row"><label for="dwell_time">dwell time</label><input id="dwell_time" type="range" min="0" max="5" value="0"><output id="dwell_time-v"></output></div>
+  <div class="row gen"><label for="demand">demand</label><input id="demand" type="range" min="20" max="120" step="5" value="100"><output id="demand-v"></output></div>
+  <div class="seg gen" id="pattern"><button data-v="up-peak">up-peak</button><button data-v="down-peak">down-peak</button><button data-v="interfloor">interfloor</button></div>
+  <div class="seg" id="layout"><button data-v="all">every floor</button><button data-v="express">express</button></div>
+  <div class="row"><label for="max_wait">max wait</label><input id="max_wait" type="range" min="19" max="61" value="61"><output id="max_wait-v"></output></div>
+  <div class="row gen"><label for="seed">seed</label><input id="seed" type="range" min="1" max="100" value="1"><output id="seed-v"></output></div>
+  <div class="row gen"><label for="run_length">run length</label><input id="run_length" type="range" min="20" max="1000" step="10" value="300"><output id="run_length-v"></output></div>
+  <div class="head">schedulers, up to 3</div>
+  <div class="grid" id="schedulers"></div>
+  <button id="run">Run</button>
+  <div class="seg"><button id="load">Load trace</button><button id="paste-open">Paste trace</button></div>
+  <input id="file" type="file" accept=".json,application/json" hidden>
+  <div id="note"></div>
+</div>
+<svg id="pic" width="1320" height="1080" viewBox="600 0 1320 1080"></svg>
+<input id="scrub" type="range" min="0" max="0" value="0">
+<div id="bar">
+  <button id="back">Back</button><button id="play">Play</button><button id="fwd">Forward</button><button id="next">Next assignment</button><button id="speed">Speed 4</button><button id="results">Results</button>
+  <span id="count"></span>
+</div>
+<div id="paste"><div>Paste a trace from <b>elevator-sim trace</b>, then press Load.</div><textarea id="paste-text" spellcheck="false"></textarea><div class="seg"><button id="paste-load">Load</button><button id="paste-close">Close</button></div></div>
+</div>
+<script>
+// Palette and drawing helpers, after the deck's stepper.
+const K = { bg: '#16171b', panel: '#1b1d22', ink: '#eceae6', muted: '#a19d97', dim: '#55585f', line: '#3a3d46', a: '#60a5fa', b: '#fb923c', good: '#4ade80', bad: '#f87171', stop: '#facc15', q: '#e879f9', teal: '#2dd4bf' };
+const CAR = [K.a, K.b, K.good, K.q, K.teal];
+const carColor = i => CAR[i % CAR.length];
+const LET = 'ABCDEFGHIJ';
+const NAMES = { 'round-robin': 'round robin', 'nearest-car': 'nearest car', 'lowest-cost': 'lowest cost', 'lowest-cost-nocap': 'lowest cost, max wait off', zoned: 'zoned' };
+const PRESET_NAMES = ['Rush hour', 'Random floors', 'One elevator', 'Tall building', 'Express, 40 floors', 'Two elevators, Q'];
+const MAXW = ['off', 20, 25, 30, 35, 40, 45, 50, 55, 60, 'default'];
+const SPEEDS = [1, 2, 4, 8, 16, 32];
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const tx = (x, y, s, o = {}) => `<text x="${x}" y="${y}" font-size="${o.size || 28}" fill="${o.fill || K.ink}" text-anchor="${o.anchor || 'start'}" font-weight="${o.weight || 400}" opacity="${o.op ?? 1}">${esc(s)}</text>`;
+const ln = (x1, y1, x2, y2, c = K.line, w = 3, x = '') => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w}" stroke-linecap="round"${x}/>`;
+const tri = (x, y, dir, c, r = 11) => dir > 0 ? `<polygon points="${x - r},${y + r * 0.7} ${x + r},${y + r * 0.7} ${x},${y - r}" fill="${c}"/>` : `<polygon points="${x - r},${y - r * 0.7} ${x + r},${y - r * 0.7} ${x},${y + r}" fill="${c}"/>`;
+const frame = (x, y, w, h, c, wd = 5) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="none" stroke="${c}" stroke-width="${wd}"/>`;
+const ring = (x, y, r, c, mode) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${mode === 'in' ? c : K.bg}" fill-opacity="${mode === 'in' ? 0.28 : 1}" stroke="${c}" stroke-width="${r >= 10 ? 4 : 2.5}"${mode === 'wait' && r >= 8 ? ' stroke-dasharray="6 4"' : ''}/>`;
+const diamond = (x, y, c = K.stop, r = 11) => `<rect x="${x - r}" y="${y - r}" width="${2 * r}" height="${2 * r}" fill="${c}" transform="rotate(45 ${x} ${y})"/>`;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const fmt = v => v == null ? '' : typeof v !== 'number' ? String(v) : Number.isInteger(v) ? String(v) : v.toFixed(1);
+const short = v => typeof v === 'number' && Math.abs(v) >= 10000 ? `${Math.round(v / 1000)}k` : fmt(v);
+const mean = xs => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+const fit1 = (s, n) => s.length > n ? s.slice(0, n - 3) + '...' : s;
+
+// State: the server's catalog (null when opened as a file), the loaded traces, the frames and the playback position.
+let CAT = null, DATA = null, F = [], fi = 0, timer = null, speed = 2, results = false, PAX = [];
+const RECENT = [];
+const S = { floors: 20, elevators: 4, capacity: 10, dwell_time: 0, demand: 100, pattern: 'up-peak', layout: 'all', max_wait: 61,
+  seed: 1, run_length: 300, requests: null, preset: 'Rush hour', schedulers: ['nearest-car', 'lowest-cost'] };
+const SLIDERS = ['floors', 'elevators', 'capacity', 'dwell_time', 'demand', 'max_wait', 'seed', 'run_length'];
+const GEN = ['demand', 'pattern', 'seed', 'run_length'];
+const CHOICES = ['round-robin', 'nearest-car', 'lowest-cost', 'zoned'];
+const USES_MAX_WAIT = ['lowest-cost', 'zoned'];
+const maxWaitParam = v => v <= 19 ? 'off' : v >= 61 ? 'default' : v;
+const maxWaitText = v => v <= 19 ? 'off' : v >= 61 ? `default ${3 * (S.floors - 1)}` : String(v);
+const OUT = { demand: v => `${v}%`, max_wait: maxWaitText };
+
+function setNote(text, err = false) { $('note').textContent = text; $('note').classList.toggle('err', err); }
+
+function sync() {
+  for (const k of SLIDERS) { $(k).value = S[k]; $(`${k}-v`).textContent = (OUT[k] || String)(S[k]); }
+  document.querySelectorAll('#pattern button').forEach(b => b.classList.toggle('on', b.dataset.v === S.pattern && !S.requests));
+  document.querySelectorAll('#layout button').forEach(b => b.classList.toggle('on', b.dataset.v === S.layout));
+  document.querySelectorAll('#schedulers button').forEach(b => b.classList.toggle('on', S.schedulers.includes(b.dataset.v)));
+  document.querySelectorAll('#presets button').forEach(b => b.classList.toggle('on', b.dataset.v === S.preset));
+  document.querySelectorAll('.gen').forEach(el => el.classList.toggle('off', !!S.requests));
+  $('max_wait').closest('.row').classList.toggle('off', !S.schedulers.some(s => USES_MAX_WAIT.includes(s)));
+}
+
+function buildControls() {
+  $('presets').innerHTML = PRESET_NAMES.map(n => `<button data-v="${esc(n)}">${esc(n)}</button>`).join('');
+  $('schedulers').innerHTML = CHOICES.map(n => `<button data-v="${n}">${NAMES[n]}</button>`).join('');
+  for (const k of SLIDERS) $(k).addEventListener('input', e => {
+    S[k] = +e.target.value; S.preset = null;
+    if (GEN.includes(k)) S.requests = null;
+    sync();
+  });
+  $('pattern').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.pattern = b.dataset.v; S.requests = null; S.preset = null; sync(); });
+  $('layout').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.layout = b.dataset.v; S.preset = null; sync(); });
+  $('schedulers').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const v = b.dataset.v, on = S.schedulers.includes(v);
+    if (on && S.schedulers.length === 1) return setNote('Keep at least one scheduler.');
+    if (!on && S.schedulers.length === 3) return setNote('Compare at most 3 schedulers.');
+    S.schedulers = on ? S.schedulers.filter(s => s !== v) : CHOICES.filter(s => s === v || S.schedulers.includes(s));
+    setNote(''); sync();
+  });
+  $('presets').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || !CAT) return;
+    const p = CAT.presets[b.dataset.v];
+    Object.assign(S, { dwell_time: 0, seed: 1, max_wait: 61, layout: 'all', requests: null, demand: S.demand, pattern: S.pattern, run_length: S.run_length }, p);
+    S.preset = b.dataset.v; setNote(''); sync();
+  });
+  $('run').onclick = run;
+  $('load').onclick = () => $('file').click();
+  $('file').addEventListener('change', async e => { const f = e.target.files[0]; if (f) loadText(await f.text()); e.target.value = ''; });
+  $('paste-open').onclick = () => { $('paste').classList.add('open'); $('paste-text').focus(); };
+  $('paste-close').onclick = () => $('paste').classList.remove('open');
+  $('paste-load').onclick = () => { if (loadText($('paste-text').value)) $('paste').classList.remove('open'); };
+}
+
+function fileMode() {
+  document.querySelectorAll('#controls input, #controls button').forEach(el => { el.disabled = !['load', 'paste-open', 'file'].includes(el.id); });
+  document.querySelectorAll('#controls .row').forEach(el => el.classList.add('off'));
+  setNote('Opened as a file: load or paste a trace. Run elevator-sim serve to use the controls.');
+}
+
+async function run() {
+  const params = { schedulers: S.schedulers.slice(), floors: S.floors, elevators: S.elevators, capacity: S.capacity,
+    dwell_time: S.dwell_time, layout: S.layout, max_wait: maxWaitParam(S.max_wait) };
+  if (S.requests) params.requests = S.requests;
+  else Object.assign(params, { demand: S.demand, pattern: S.pattern, seed: S.seed, run_length: S.run_length });
+  stop(); $('run').disabled = true; setNote('Running...');
+  try {
+    const r = await fetch('api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
+    const body = await r.json();
+    if (!r.ok) return setNote(body.error || `the server answered ${r.status}`, true);
+    load(body);
+  } catch (err) {
+    setNote(`Run failed: ${err.message}`, true);
+  } finally {
+    $('run').disabled = false;
+  }
+}
+
+function loadText(text) {
+  try { load(JSON.parse(text)); return true; } catch (err) { setNote(`Not a trace: ${err.message}`, true); return false; }
+}
+
+function settingsLabel(tr) {
+  const c = tr.config, parts = [`${c.floors} floors`, `${c.elevators} x ${c.capacity}`, `${tr.passengers.length} passengers`];
+  if (c.dwell_time) parts.push(`dwell ${c.dwell_time}`);
+  if (c.served_floors) parts.push('express');
+  return parts.join(', ');
+}
+
+function load(data) {
+  if (!data || data.format !== 1 || !Array.isArray(data.traces) || !data.traces.length) throw new Error('expected format 1 with a list of traces');
+  const ids = data.traces.map(t => t.passengers.map(p => p.id).join(','));
+  if (ids.some(x => x !== ids[0])) throw new Error('the traces do not share their passengers');
+  stop(); DATA = data; results = false; fi = 0;
+  PAX = data.traces.map(t => new Map(t.passengers.map(p => [p.id, p])));
+  const T = Math.max(...data.traces.map(t => t.units.length)), at = new Map();
+  data.traces[0].assignments.forEach((a, j) => { if (!at.has(a.t)) at.set(a.t, []); at.get(a.t).push(j); });
+  F = [];
+  for (let t = 0; t < T; t++) {
+    const js = at.get(t) || [];
+    for (const j of js) F.push({ t, a: j, a0: js[0] });
+    F.push({ t, a: -1, a0: js.length ? js[0] : -1, last: js.length ? js[js.length - 1] : -1 });
+  }
+  for (const tr of data.traces) {
+    const s = tr.summary;
+    RECENT.unshift({ label: settingsLabel(tr), scheduler: NAMES[tr.scheduler] || tr.scheduler, maxWait: tr.config.max_wait,
+      uses: USES_MAX_WAIT.includes(tr.scheduler), meanTotal: s.total ? s.total.mean : null, longest: s.wait ? s.wait.max : null });
+  }
+  RECENT.splice(6);
+  setNote(`${data.traces[0].passengers.length} passengers, ${T} time units. Play, step, or skip to the next assignment.`);
+  $('scrub').max = F.length - 1;
+  render();
+}
+
+// What each panel shows at a frame: assignment frames show the start of the time unit, other frames the end of it.
+function stateAt(tr, f) {
+  const U = tr.units, last = U.length - 1, E = tr.config.elevators, none = () => Array.from({ length: E }, () => []);
+  if (f.t > last) { const u = U[last]; return { floors: u.floors, dirs: u.dirs.map(() => 0), inside: u.inside, waiting: u.waiting, done: true }; }
+  const u = U[f.t];
+  if (f.a < 0) return { floors: u.floors, dirs: u.dirs, inside: u.inside, waiting: u.waiting, done: false };
+  const prev = f.t > 0 ? U[f.t - 1] : null, waiting = (prev ? prev.waiting : none()).map(w => w.slice());
+  for (let j = f.a0; j < f.a; j++) { const a = tr.assignments[j]; waiting[a.pick].push(a.passenger); }
+  return { floors: u.floors, dirs: prev ? prev.dirs : u.floors.map(() => 0), inside: prev ? prev.inside : none(), waiting, done: false };
+}
+
+function counters(tr, f) {
+  const now = f.a < 0 ? f.t : f.t - 1, c = { waiting: 0, riding: 0, arrived: 0, longest: 0, totals: [] };
+  tr.passengers.forEach((p, i) => {
+    if (!(f.a < 0 ? p.time <= f.t : p.time < f.t || i <= f.a)) return;
+    const on = p.boarded != null && p.boarded <= now;
+    if (p.arrived != null && p.arrived <= now) { c.arrived++; c.totals.push(p.total); } else if (on) c.riding++; else c.waiting++;
+    c.longest = Math.max(c.longest, on ? p.wait : Math.max(0, now - p.time));
+  });
+  return c;
+}
+
+function tallies(trial, id) {
+  const before = new Map(trial.without.rows.map(r => [r[0], r[3]]));
+  let own = 0, delay = 0;
+  for (const r of trial.with.rows) { if (r[0] === id) own = r[3]; else delay += r[3] - (before.get(r[0]) ?? 0); }
+  return { own, delay };
+}
+
+function reasons(tr, a, wide) {
+  const L = i => LET[i], sc = a.scores, cands = sc.map((v, i) => [v, i]).filter(([v]) => v != null && v !== 'stuck').sort((x, y) => x[0] - y[0] || x[1] - y[1]);
+  const runner = cands.find(([, i]) => i !== a.pick), p = PAX[0].get(a.passenger);
+  if (a.rule === 'turn') return [`turn ${a.turn}: elevator ${L(a.pick)}`, wide ? 'in turn, wherever the elevators are' : 'in turn, ignores floors'];
+  if (a.rule === 'floors') {
+    if (!wide) return [`${L(a.pick)}: ${sc[a.pick]} floors`, runner ? `next best ${L(runner[1])}: ${runner[0]}` : 'the only one offered'];
+    return [`${L(a.pick)}: ${sc[a.pick]} floors to reach ${p.id}`, runner ? `next best ${L(runner[1])}: ${runner[0]} floors` : 'the only elevator offered'];
+  }
+  const t = (a.trials || []).find(x => x.elevator === a.pick), why = t ? tallies(t, a.passenger) : null, win = `${L(a.pick)} adds ${short(sc[a.pick])}`;
+  if (!wide) {
+    const tail = runner ? `, next ${L(runner[1])} ${short(runner[0])}` : a.band ? `, band ${a.band[0]} to ${a.band[1]}` : '';
+    return [win + tail, why ? `own ${short(why.own)} + delay ${short(why.delay)}` : ''];
+  }
+  const first = why ? `${win}: ${p.id} ${short(why.own)}, others delayed ${short(why.delay)}` : win;
+  const band = a.band ? `band ${a.band[0]} to ${a.band[1]}, ` : '';
+  return [first, runner ? `${band}next best ${L(runner[1])} adds ${short(runner[0])}` : `${band}the only elevator to choose`];
+}
+
+// One panel: a scheduler's elevator bank at this frame, its counters, and at an assignment every elevator's score.
+function panel(k, f, x0, W) {
+  const tr = DATA.traces[k], c = tr.config, E = c.elevators, st = stateAt(tr, f), a = f.a >= 0 ? tr.assignments[f.a] : null;
+  const top = 330, bottom = 860, fh = (bottom - top) / c.floors, fy = fl => bottom - (fl - 0.5) * fh;
+  const left = 70, cw = (W - left - 18) / E, sw = cw < 60 ? cw * 0.62 : Math.min(cw * 0.5, 96), gut = cw - sw, wide = W > 600;
+  let s = tx(x0 + 16, 104, NAMES[tr.scheduler] || tr.scheduler, { size: 34, weight: 700 });
+  if (st.done) s += tx(x0 + W - 16, 104, `done at ${tr.units.length - 1}`, { anchor: 'end', fill: K.muted });
+  const n = counters(tr, f), mt = mean(n.totals);
+  s += tx(x0 + 16, 144, `waiting ${n.waiting}, riding ${n.riding}, arrived ${n.arrived}`, { fill: K.muted });
+  s += tx(x0 + 16, 180, `longest wait ${n.longest}, mean total ${mt == null ? '-' : mt.toFixed(1)}`, { fill: K.muted });
+  if (a) {
+    const [r1, r2] = reasons(tr, a, wide), chars = Math.floor((W - 32) / 15);
+    s += tx(x0 + 16, 224, fit1(r1, chars), { fill: K.stop, weight: 700 }) + tx(x0 + 16, 260, fit1(r2, chars), { fill: K.ink });
+  }
+  const step = [1, 2, 5, 10, 20].find(v => v * fh >= 34) || 20, labels = [1];
+  for (let fl = step; fl <= c.floors; fl += step) if ((fl - 1) * fh >= 34 && (c.floors - fl) * fh >= 34) labels.push(fl);
+  labels.push(c.floors);
+  for (const fl of labels) s += tx(x0 + left - 20, fy(fl) + 10, fl, { anchor: 'end', fill: K.muted });
+  const p = a ? PAX[0].get(a.passenger) : null;
+  for (let i = 0; i < E; i++) {
+    const cx = x0 + left + i * cw, col = carColor(i), win = a && a.pick === i, served = c.served_floors ? new Set(c.served_floors[i]) : null;
+    if (win) s += frame(cx - 6, top - 44, sw + 12, bottom - top + 50, K.stop, 4);
+    s += tx(cx + sw / 2, top - 12, LET[i], { anchor: 'middle', fill: col, weight: 700 });
+    s += `<rect x="${cx}" y="${top}" width="${sw}" height="${bottom - top}" rx="4" fill="none" stroke="${K.line}" stroke-width="3"/>`;
+    if (served) for (let fl = 1; fl <= c.floors; fl++) if (!served.has(fl)) s += `<rect x="${cx + 2}" y="${bottom - fl * fh}" width="${sw - 4}" height="${fh}" fill="${K.line}" opacity="0.55"/>`;
+    const ch = clamp(fh, Math.min(30, sw), 56), cy = clamp(fy(st.floors[i]), top + ch / 2 + 2, bottom - ch / 2 - 2), load = st.inside[i].length / c.capacity;
+    s += `<rect x="${cx + 3}" y="${cy - ch / 2}" width="${sw - 6}" height="${ch}" rx="6" fill="${col}" fill-opacity="${0.18 + 0.6 * load}" stroke="${col}" stroke-width="3"/>`;
+    if (sw >= 40 && st.inside[i].length) s += tx(cx + sw / 2, cy + 10, st.inside[i].length, { anchor: 'middle', weight: 700 });
+    if (st.dirs[i]) s += tri(cx + sw / 2, st.dirs[i] > 0 ? cy - ch / 2 - 12 : cy + ch / 2 + 12, st.dirs[i], col, 9);
+    const r = clamp(fh * 0.38, 4, 9), rows = new Map();
+    for (const id of st.waiting[i]) { const fl = PAX[k].get(id).source; rows.set(fl, (rows.get(fl) || 0) + 1); }
+    for (const [fl, m] of rows) {
+      s += ring(cx + sw + 4 + r, fy(fl), r, col, 'wait');
+      if (m > 1 && gut >= 2 * r + 44) s += tx(cx + sw + 8 + 2 * r, fy(fl) + 10, m, { fill: col, weight: 700 });
+    }
+    if (win) s += ring(cx + sw + 4 + 11, fy(p.source), 11, K.stop, 'wait') + diamond(cx - 4, fy(p.dest), K.stop, 8);
+    if (a && a.scores[i] != null) {
+      const v = a.scores[i], label = v === 'stuck' ? 'stuck' : cw < 64 && Math.abs(v) >= 1000 ? `${Math.round(v / 1000)}k` : short(v);
+      s += tx(cx + sw / 2, 900 + (cw < 64 && i % 2 ? 34 : 0), label, { anchor: 'middle', fill: win ? K.stop : K.ink, weight: win ? 800 : 400 });
+    }
+  }
+  return s;
+}
+
+function header(f) {
+  const tr = DATA.traces[0], a = f.a >= 0 ? tr.assignments[f.a] : null;
+  let s = tx(620, 56, `time ${f.t}`, { size: 44, fill: K.stop, weight: 800 });
+  if (a) { const p = PAX[0].get(a.passenger); s += tx(860, 56, `${p.id} asks: floor ${p.source} to floor ${p.dest}`, { size: 36, weight: 700 }); }
+  return s + tx(1900, 56, '1 time unit = 1 floor of travel', { anchor: 'end', fill: K.muted });
+}
+
+// The results view: bars per scheduler, a wait time histogram, and recent runs for the maximum wait time trade-off.
+const SCH = [K.a, K.b, K.good];
+function bars() {
+  const T = DATA.traces, M = [['mean wait', s => s.wait.mean], ['mean total', s => s.total.mean], ['longest wait', s => s.wait.max]];
+  const x0 = 640, y0 = 470, h = 300, gw = 400, bw = Math.min(90, (gw - 60) / T.length);
+  const top = Math.max(1, ...T.flatMap(t => t.summary.wait ? M.map(([, g]) => g(t.summary)) : [0]));
+  let s = tx(x0, 130, 'time units per passenger, lower is better', { fill: K.muted });
+  T.forEach((t, k) => { s += `<rect x="${x0 + k * 400}" y="${150}" width="26" height="26" fill="${SCH[k]}"/>` + tx(x0 + 36 + k * 400, 174, NAMES[t.scheduler] || t.scheduler, { fill: SCH[k], weight: 700 }); });
+  M.forEach(([name, get], m) => {
+    const gx = x0 + m * (gw + 20);
+    T.forEach((t, k) => {
+      if (!t.summary.wait) return;
+      const v = get(t.summary), bh = (v / top) * h, x = gx + 20 + k * (bw + 12);
+      s += `<rect x="${x}" y="${y0 - bh}" width="${bw}" height="${bh}" rx="4" fill="${SCH[k]}"/>` + tx(x + bw / 2, y0 - bh - 10, fmt(v), { anchor: 'middle', weight: 700 });
+    });
+    s += ln(gx, y0, gx + gw, y0, K.muted, 2) + tx(gx + 20, y0 + 40, name, { weight: 700 });
+  });
+  return s;
+}
+function histogram() {
+  const T = DATA.traces.filter(t => t.summary.wait), x0 = 700, y0 = 900, w = 540, h = 250;
+  if (!T.length) return '';
+  const hi = Math.max(1, ...T.map(t => t.summary.wait.max)), width = [1, 2, 5, 10, 20, 50, 100, 200, 500].find(v => hi / v <= 12) || 1000, n = Math.floor(hi / width) + 1;
+  const counts = T.map(t => { const c = new Array(n).fill(0); t.passengers.forEach(p => c[Math.floor(p.wait / width)]++); return c; });
+  const peak = Math.max(1, ...counts.flat()), bw = w / n / T.length;
+  let s = tx(x0 - 60, 560, `wait time histogram, bins of ${width}`, { weight: 700 }) + tx(x0 - 60, 596, 'passengers per bin', { fill: K.muted });
+  counts.forEach((c, k) => c.forEach((v, b) => { const bh = (v / peak) * h; s += `<rect x="${x0 + b * (w / n) + k * bw}" y="${y0 - bh}" width="${bw - 2}" height="${bh}" fill="${SCH[DATA.traces.indexOf(T[k])]}"/>`; }));
+  s += ln(x0, y0, x0 + w, y0, K.muted, 2) + tx(x0 - 10, y0 - h + 10, peak, { anchor: 'end', fill: K.muted }) + tx(x0 - 10, y0, 0, { anchor: 'end', fill: K.muted });
+  s += tx(x0, y0 + 36, 0, { anchor: 'middle', fill: K.muted }) + tx(x0 + w, y0 + 36, n * width, { anchor: 'middle', fill: K.muted }) + tx(x0 + w / 2, y0 + 36, 'wait time', { anchor: 'middle', fill: K.muted });
+  return s;
+}
+function tradeoff() {
+  const x0 = 1300;
+  let s = tx(x0, 560, 'maximum wait time trade-off', { weight: 700 }) + tx(x0, 596, 'recent runs, newest first', { fill: K.muted });
+  s += tx(x0, 650, 'max wait', { fill: K.muted }) + tx(x0 + 340, 650, 'longest wait', { fill: K.muted, anchor: 'end' }) + tx(x0 + 560, 650, 'mean total', { fill: K.muted, anchor: 'end' });
+  RECENT.slice(0, 6).forEach((r, k) => {
+    const y = 700 + k * 44, mw = r.uses ? (r.maxWait == null ? 'off' : r.maxWait) : 'n/a';
+    s += tx(x0, y, `${fit1(r.scheduler, 13)}, ${mw}`, { fill: k < DATA.traces.length ? K.ink : K.muted });
+    s += tx(x0 + 340, y, r.longest ?? '-', { anchor: 'end', weight: 700 }) + tx(x0 + 560, y, r.meanTotal == null ? '-' : r.meanTotal.toFixed(1), { anchor: 'end', weight: 700 });
+  });
+  return s;
+}
+function resultsView() {
+  return tx(620, 64, `results: ${settingsLabel(DATA.traces[0])}`, { size: 40, fill: K.stop, weight: 800 }) + bars() + histogram() + tradeoff();
+}
+
+// Drawing, playback and the 1920 by 1080 fit.
+function render() {
+  $('results').classList.toggle('on', results);
+  if (!DATA) {
+    $('pic').innerHTML = tx(660, 200, 'Pick a preset or set the sliders, choose schedulers, then press Run.', { size: 36 }) +
+      tx(660, 260, 'Opened as a file? Load a trace from elevator-sim trace.', { size: 32, fill: K.muted });
+    $('count').textContent = '';
+    return;
+  }
+  const f = F[fi], n = DATA.traces.length, W = 1300 / n;
+  $('scrub').value = fi;
+  $('count').textContent = `step ${fi + 1} of ${F.length}`;
+  if (results) { $('pic').innerHTML = resultsView(); return; }
+  let s = header(f);
+  for (let k = 0; k < n; k++) {
+    s += panel(k, f, 610 + k * W, W);
+    if (k) s += ln(610 + k * W, 80, 610 + k * W, 930, K.line, 2);
+  }
+  $('pic').innerHTML = s;
+}
+function go(i) { fi = clamp(i, 0, F.length - 1); render(); }
+function stop() { if (timer) clearInterval(timer); timer = null; $('play').textContent = 'Play'; }
+function play() {
+  if (!DATA) return;
+  if (timer) return stop();
+  results = false;
+  if (fi >= F.length - 1) fi = 0;
+  $('play').textContent = 'Pause';
+  timer = setInterval(() => {
+    let j = fi + 1;
+    while (j < F.length - 1 && F[j].a >= 0) j++;
+    if (j >= F.length - 1) { stop(); go(F.length - 1); results = true; render(); return; }
+    go(j);
+  }, 1000 / SPEEDS[speed]);
+}
+function nextAssignment() {
+  stop(); results = false;
+  let j = fi + 1;
+  while (j < F.length && F[j].a < 0) j++;
+  go(j < F.length ? j : F.length - 1);
+}
+function step(d) { if (!DATA) return; stop(); results = false; go(fi + d); }
+$('back').onclick = () => step(-1);
+$('fwd').onclick = () => step(1);
+$('play').onclick = play;
+$('next').onclick = nextAssignment;
+$('speed').onclick = () => { speed = (speed + 1) % SPEEDS.length; $('speed').textContent = `Speed ${SPEEDS[speed]}`; if (timer) { stop(); play(); } };
+$('results').onclick = () => { if (!DATA) return; stop(); results = !results; render(); };
+$('scrub').addEventListener('input', e => { stop(); results = false; go(+e.target.value); });
+document.querySelectorAll('#bar button').forEach(b => b.addEventListener('click', () => b.blur()));
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'TEXTAREA') return;
+  const k = e.key;
+  if (k === ' ') play();
+  else if (k === 'ArrowRight' && e.shiftKey || k === 'n' || k === 'N') nextAssignment();
+  else if (k === 'ArrowRight') step(1);
+  else if (k === 'ArrowLeft') step(-1);
+  else if (k === 'r' || k === 'R') { if (DATA) { stop(); results = !results; render(); } }
+  else return;
+  e.preventDefault();
+});
+function fit() {
+  const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+  $('stage').style.transform = `translate(${(innerWidth - 1920 * s) / 2}px, ${(innerHeight - 1080 * s) / 2}px) scale(${s})`;
+}
+addEventListener('resize', fit);
+fit();
+buildControls();
+$('speed').textContent = `Speed ${SPEEDS[speed]}`;
+sync();
+render();
+if (location.protocol === 'file:') fileMode();
+else fetch('api/scenarios').then(r => r.json()).then(c => { CAT = c; setNote('Pick a preset, then press Run.'); }).catch(() => fileMode());
+</script>
+</body>
+</html>

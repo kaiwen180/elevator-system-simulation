@@ -16,12 +16,14 @@ This file is the contract every module follows. If code and this file disagree, 
 | `stats.py` | Summary numbers for a finished run |
 | `invariants.py` | Checks that a finished run obeyed every rule |
 | `scenarios.py` | The named extreme scenarios and the comparison report |
-| `cli.py` | The command line: `run`, `compare`, `fairness` |
+| `cli.py` | The command line: `run`, `compare`, `fairness`, `trace`, `serve` |
+| `trace.py` | A run as JSON for the live page, and the parameter checks the command line and the server share |
+| `server.py` | The live page's server: standard library only, bound to 127.0.0.1 |
 | `extensions/zoning.py` | The zoned scheduler: bands of floors above the lobby, lowest cost inside a band |
 | `extensions/express.py` | Express layouts for `Config.served_floors`: `express_bank` and `servable` |
 | `extensions/fairness.py` | The fairness against efficiency study for lowest cost |
 
-Dependencies point one way: `models` and `config` at the bottom, `direction` above them, `scheduler` and `simulation` above that, `scenarios` and `cli` on top. `zoning` sits beside `scheduler` (which builds it by name), `express` below `scenarios`, and `fairness` between `scenarios` and `cli`.
+Dependencies point one way: `models` and `config` at the bottom, `direction` above them, `scheduler` and `simulation` above that, `scenarios` and `cli` on top. `zoning` sits beside `scheduler` (which builds it by name), `express` below `scenarios`, and `fairness` between `scenarios` and `cli`. `trace` sits above `scenarios`, and `server` above `trace`.
 
 ## One time unit
 
@@ -89,3 +91,30 @@ Real throughput differs from this estimate in both directions. Interfloor trips 
 - **Output** `events.csv`: header `time,passenger,elevator,floor,event`. Elevators are numbered from 1. `event` is `assigned`, `boarded` or `arrived`. Rows are in the order things happened.
 
 Inside the code, elevators are numbered from 0. Output files add 1.
+
+## Trace format
+
+`elevator-sim trace` and `POST /api/run` return the same JSON: `{"format": 1, "traces": [...]}`, one trace per scheduler, all on the same passengers. Elevators are numbered from 0. Each trace holds:
+
+- `scheduler`, and `config`: `floors`, `elevators`, `capacity`, `dwell_time`, `served_floors` (one sorted list per elevator, or `null`), `max_wait` (the one the scheduler uses, or `null`).
+- `passengers`: `id`, `time`, `source`, `dest`, `elevator`, `boarded`, `arrived`, `wait`, `total`.
+- `units`, one per time unit `t`: `floors` is row `t` of the elevator positions log (the floor at the start of the unit); `dirs`, `inside` and `waiting` are each elevator's direction, riders and waiting passengers after the step; `events` lists `[kind, passenger, elevator, floor]` in the order they happened.
+- `assignments`, one per passenger in assignment order: `t`, `passenger`, `offered` (the elevators that serve the trip), `rule`, `scores` (one per elevator, `null` if not scored, `"stuck"` for an infinite cost), `pick`.
+  - `rule` `turn` (round robin): `turn` is the counter; the score is how many turns until each elevator's go.
+  - `rule` `floors` (nearest car): the score is `floors_to_reach`.
+  - `rule` `cost` (lowest cost, zoned): the score is `incremental_cost`; `trials` holds, for each scored elevator, both trial allocations (`with` and `without`) with their `sum` and one row per passenger, `[id, boarded, arrived, cost]`. Zoned adds `band`, and scores only the elevators of that band.
+- `summary`: `passengers`, `time_units`, `wait` and `total` (each `mean`, `p95`, `max`; `null` with no passengers), `served_per_elevator`.
+
+Each recorded pick is checked against the scheduler's own choice. Limits keep one request small: 2 to 60 floors, 1 to 10 elevators, capacity 1 to 20, dwell time 0 to 5, demand 0% to 200%, run length 1 to 1000, at most 1000 passengers and 3 schedulers, 5000 time units and 20 seconds per run. Past a limit the run raises `ValueError` with the reason.
+
+## Live page API
+
+`elevator-sim serve [--port 8080]` binds to 127.0.0.1 only and uses the standard library. It writes no request log. `--log-requests` together with `ELEVATOR_SIM_LOG=local` (or `dev`, `test`) logs the method, route and status of each request, never the body.
+
+| Route | Returns |
+|---|---|
+| `GET /` | The page, `src/elevator_sim/ui/index.html` |
+| `GET /api/scenarios` | The named scenarios, the schedulers, the presets, the patterns, the defaults and the limits |
+| `POST /api/run` | Traces in the format above |
+
+`POST /api/run` takes a JSON object with one passenger source: `scenario` (a name; only `dwell_time` may change), `requests` (request file text, or a list of `{time, id, source, dest}`), or neither (generate with `demand` in percent, `pattern`, `seed`, `run_length`). Building settings are `floors`, `elevators`, `capacity`, `dwell_time` and `layout` (`all`, or `express`: half the elevators local below the middle floor, half express above it). `schedulers` lists 1 to 3 names; `max_wait` is `default`, `off` or a whole number, and applies to lowest cost and zoned. Bad input returns 400 with `{"error": "..."}`, the same message `Config`, the request parser and the limits give. A body over 200,000 bytes returns 413; more than 2 runs at once returns 429.

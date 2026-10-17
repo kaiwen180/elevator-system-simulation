@@ -1,9 +1,11 @@
-"""Command line: run a request file, compare the named scenarios, or print the fairness study."""
+"""Command line: run a request file, compare scenarios, print the fairness study, write a trace, or serve the live page."""
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
+from pathlib import Path
 
 from .config import Config
 from .extensions.fairness import DEFAULT_SCENARIOS, fairness_study, fairness_table
@@ -13,6 +15,8 @@ from .models import Request
 from .scenarios import compare, scenarios
 from .simulation import Simulation
 from .stats import format_summary, summarize
+from .trace import LAYOUTS, trace_runs
+from .traffic import PATTERNS
 
 DEFAULT_FLOORS = 20
 BAD_INPUT = 2
@@ -42,6 +46,23 @@ def build_parser() -> argparse.ArgumentParser:
 
     fairness = commands.add_parser("fairness", help="print the fairness against efficiency study for lowest cost")
     fairness.add_argument("--scenario", action="append", help="repeat to pick several; default: 100%% interfloor and up-peak")
+
+    trace = commands.add_parser("trace", help="write a trace JSON file for the live page")
+    source = trace.add_mutually_exclusive_group()
+    source.add_argument("--scenario", help="a named scenario; default: generate passengers")
+    source.add_argument("--requests", help="CSV file with header time,id,source,dest")
+    trace.add_argument("--scheduler", action="append", choices=NAMES, help="repeat to compare up to 3; default: lowest-cost")
+    for flag in ("--floors", "--elevators", "--capacity", "--dwell-time", "--seed", "--run-length"):
+        trace.add_argument(flag, type=int)
+    trace.add_argument("--demand", type=float, help="percent of handling capacity, default 100")
+    trace.add_argument("--pattern", choices=PATTERNS)
+    trace.add_argument("--layout", choices=LAYOUTS)
+    trace.add_argument("--max-wait", help="default, off, or time units")
+    trace.add_argument("-o", "--out", default="trace.json", help="the trace file to write")
+
+    serve = commands.add_parser("serve", help="serve the live page and run simulations on demand, on 127.0.0.1")
+    serve.add_argument("--port", type=int, default=8080)
+    serve.add_argument("--log-requests", action="store_true", help="log method, route and status; also needs ELEVATOR_SIM_LOG=local")
     return parser
 
 
@@ -87,6 +108,48 @@ def run_fairness(args: argparse.Namespace) -> int:
     return 0
 
 
+def max_wait_value(text: str | None):
+    """The --max-wait text as default, off or a whole number."""
+    if text is None or text in ("default", "off"):
+        return text or "default"
+    try:
+        return int(text)
+    except ValueError:
+        raise ValueError(f"max_wait must be default, off or a whole number, got {text!r}") from None
+
+
+def trace_params(args: argparse.Namespace) -> dict:
+    """The trace options as the same parameters the server takes."""
+    params = {"max_wait": max_wait_value(args.max_wait), "schedulers": args.scheduler or ["lowest-cost"]}
+    if args.scenario:
+        params["scenario"] = args.scenario
+    if args.requests:
+        params["requests"] = Path(args.requests).read_text()
+    for key in ("floors", "elevators", "capacity", "dwell_time", "seed", "run_length", "pattern", "layout"):
+        if getattr(args, key) is not None:
+            params[key] = getattr(args, key)
+    if args.demand is not None:
+        params["demand"] = int(args.demand) if args.demand.is_integer() else args.demand
+    return params
+
+
+def run_trace(args: argparse.Namespace) -> int:
+    """Write the trace file for the chosen passengers and schedulers."""
+    out = Path(args.out)
+    traces = trace_runs(trace_params(args))
+    out.write_text(json.dumps(traces, separators=(",", ":"), allow_nan=False))
+    names = ", ".join(t["scheduler"] for t in traces["traces"])
+    print(f"Wrote {out}: {len(traces['traces'][0]['passengers'])} passengers, {names}")
+    return 0
+
+
+def run_serve(args: argparse.Namespace) -> int:
+    """Serve the live page on 127.0.0.1 until interrupted."""
+    from .server import serve
+    serve(args.port, args.log_requests)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Parse the arguments and run the chosen subcommand; bad input exits 2."""
     args = build_parser().parse_args(argv)
@@ -95,6 +158,10 @@ def main(argv: list[str] | None = None) -> int:
             return run_file(args)
         if args.command == "fairness":
             return run_fairness(args)
+        if args.command == "trace":
+            return run_trace(args)
+        if args.command == "serve":
+            return run_serve(args)
         return run_compare(args)
     except (ValueError, OSError) as error:
         print(f"error: {error}", file=sys.stderr)

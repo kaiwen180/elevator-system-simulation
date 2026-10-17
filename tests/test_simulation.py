@@ -138,6 +138,15 @@ def test_max_time_units_raises():
         Simulation(config, make_scheduler("lowest-cost", config)).run([Request(0, "p1", 1, 5)], max_time_units=3)
 
 
+def test_watch_sees_every_time_unit_after_the_step():
+    seen = []
+    config = Config(floors=5, elevators=1)
+    watch = lambda now, elevators, events: seen.append((now, elevators[0].floor, len(events)))
+    result = Simulation(config, make_scheduler("lowest-cost", config)).run([Request(0, "p1", 1, 3)], watch=watch)
+    assert seen == [(0, 2, 2), (1, 3, 2), (2, 3, 3)]
+    assert result.time_units == 3
+
+
 def test_max_time_units_exactly_enough_finishes():
     result = run(Config(floors=5, elevators=1), [Request(0, "p1", 1, 5)], max_time_units=5)
     assert result.time_units == 5
