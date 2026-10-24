@@ -5,8 +5,8 @@ import urllib.request
 
 import pytest
 
-from elevator_sim import server
-from elevator_sim.trace import Q_EXAMPLE
+from elevator_sim.app import server
+from elevator_sim.app.trace import Q_EXAMPLE
 
 
 @pytest.fixture
@@ -50,6 +50,14 @@ def test_scenarios_lists_scenarios_schedulers_and_presets(base):
     assert data["schedulers"] == ["round-robin", "nearest-car", "lowest-cost", "lowest-cost-nocap", "zoned"]
     assert "Rush hour" in data["presets"]
     assert data["limits"]["floors"] == [2, 60]
+
+
+def test_code_returns_the_core_views(base):
+    status, _, body = call(base + "/api/code")
+    views = json.loads(body)["views"]
+    assert status == 200
+    assert views["floors"]["file"] == "core/scheduler.py"
+    assert views["floors"]["lines"][0].startswith("def floors_to_reach(")
 
 
 def test_run_returns_one_trace_per_scheduler_on_the_same_passengers(base):

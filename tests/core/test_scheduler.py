@@ -3,11 +3,12 @@ import copy
 import pytest
 from conftest import passenger
 
-from elevator_sim import scheduler as scheduler_module
-from elevator_sim.config import Config
-from elevator_sim.direction import run_until_idle
-from elevator_sim.models import Direction, Elevator
-from elevator_sim.scheduler import LowestCost, NearestCar, RoundRobin, floors_to_reach, make_scheduler
+from elevator_sim.core import scheduler as scheduler_module
+from elevator_sim.core.config import Config
+from elevator_sim.core.direction import run_until_idle
+from elevator_sim.core.models import Direction, Elevator
+from elevator_sim.core.scheduler import LowestCost, NearestCar, RoundRobin, floors_to_reach
+from elevator_sim.benchmark.schedulers import make_scheduler
 
 
 def make_elevator(index=0, floor=1, direction=Direction.IDLE, capacity=10, inside=(), waiting=()):

@@ -12,6 +12,7 @@ html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
 svg text { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; }
 #controls { position: absolute; left: 0; top: 0; width: 600px; height: 1080px; padding: 18px 24px; background: var(--panel); border-right: 3px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
 #pic { position: absolute; left: 600px; top: 0; }
+#pic.stale { opacity: 0.3; }
 button { font-family: inherit; font-size: 28px; font-weight: 600; color: var(--ink); background: #1f2128; border: 3px solid var(--line); border-radius: 12px; padding: 6px 16px; cursor: pointer; }
 button:hover:not(:disabled) { border-color: var(--muted); }
 button:disabled, .row.off { opacity: 0.4; cursor: default; }
@@ -29,12 +30,30 @@ input[type=range]:disabled { cursor: default; }
 #run { font-size: 34px; padding: 10px; border-color: var(--stop); color: var(--stop); }
 #note { color: var(--muted); line-height: 1.25; min-height: 36px; }
 #note.err { color: var(--bad); }
-#bar { position: absolute; left: 620px; top: 1000px; width: 1280px; height: 66px; display: flex; align-items: center; gap: 12px; }
+#bar { position: absolute; left: 620px; top: 1000px; width: 1280px; height: 66px; display: flex; align-items: center; gap: 8px; }
+#bar button { font-size: 24px; padding: 6px 12px; white-space: nowrap; }
+body.code #bar, body.code #scrub { left: 20px; width: 1880px; }
 #scrub { position: absolute; left: 620px; top: 958px; width: 1280px; }
 #count { color: var(--muted); font-variant-numeric: tabular-nums; margin-left: auto; white-space: nowrap; }
 #paste { position: absolute; left: 640px; top: 120px; width: 1240px; height: 820px; padding: 24px; background: var(--panel); border: 3px solid var(--line); border-radius: 16px; display: none; flex-direction: column; gap: 16px; }
 #paste.open { display: flex; }
 #paste textarea { flex: 1; font: 28px ui-monospace, Menlo, monospace; color: var(--ink); background: var(--bg); border: 3px solid var(--line); border-radius: 12px; padding: 12px; resize: none; }
+#code { position: absolute; left: 1260px; top: 80px; width: 640px; height: 860px; padding: 14px 16px; background: var(--panel); border: 3px solid var(--line); border-radius: 14px; display: none; flex-direction: column; gap: 10px; }
+#code.open { display: flex; }
+#code-tabs { display: flex; gap: 8px; }
+#code-tabs button { font-size: 22px; padding: 4px 12px; }
+#code-file { color: var(--muted); font: 22px ui-monospace, Menlo, monospace; }
+#code-why { color: var(--stop); font-size: 26px; font-weight: 700; line-height: 1.25; min-height: 66px; }
+#code-lines { position: relative; flex: 1; overflow: auto; font: 19px/1.45 ui-monospace, Menlo, monospace; }
+#code-lines .ln { display: grid; grid-template-columns: 2.4em 1fr; gap: 0.6em; border-left: 5px solid transparent; padding-right: 6px; }
+#code-lines .ln b { color: var(--dim); font-weight: 400; text-align: right; }
+#code-lines .ln span { white-space: pre-wrap; overflow-wrap: anywhere; }
+#code-lines .ln.hl { background: rgba(250, 204, 21, 0.16); border-left-color: var(--stop); }
+#code-lines .ln.alt { background: rgba(96, 165, 250, 0.13); border-left-color: #60a5fa; }
+#code-lines i { font-style: normal; }
+#code-lines i.k { color: #c4a7fb; } #code-lines i.s { color: #86efac; } #code-lines i.c { color: var(--dim); }
+body.code #controls { display: none; }
+body.code #pic { left: 0; }
 </style>
 </head>
 <body>
@@ -61,9 +80,10 @@ input[type=range]:disabled { cursor: default; }
 <svg id="pic" width="1320" height="1080" viewBox="600 0 1320 1080"></svg>
 <input id="scrub" type="range" min="0" max="0" value="0">
 <div id="bar">
-  <button id="back">Back</button><button id="play">Play</button><button id="fwd">Forward</button><button id="next">Next assignment</button><button id="speed">Speed 4</button><button id="results">Results</button>
+  <button id="back">Back</button><button id="play">Play</button><button id="fwd">Forward</button><button id="next">Next assignment</button><button id="speed">Speed 4</button><button id="results">Results</button><button id="code-btn">Code</button><button id="voice-btn">Voice</button><button id="voice-load">Load voice</button>
   <span id="count"></span>
 </div>
+<div id="code"><div id="code-tabs"></div><div id="code-file"></div><div id="code-why"></div><div id="code-lines"></div></div>
 <div id="paste"><div>Paste a trace from <b>elevator-sim trace</b>, then press Load.</div><textarea id="paste-text" spellcheck="false"></textarea><div class="seg"><button id="paste-load">Load</button><button id="paste-close">Close</button></div></div>
 </div>
 <script>
@@ -73,7 +93,7 @@ const CAR = [K.a, K.b, K.good, K.q, K.teal];
 const carColor = i => CAR[i % CAR.length];
 const LET = 'ABCDEFGHIJ';
 const NAMES = { 'round-robin': 'round robin', 'nearest-car': 'nearest car', 'lowest-cost': 'lowest cost', 'lowest-cost-nocap': 'lowest cost, max wait off', zoned: 'zoned' };
-const PRESET_NAMES = ['Rush hour', 'Random floors', 'One elevator', 'Tall building', 'Express, 40 floors', 'Two elevators, Q'];
+const PRESET_NAMES = ['Smallest, 4 floors', 'Two elevators, Q', 'Rush hour', 'Random floors', 'One elevator', 'Tall building', 'Express, 40 floors'];
 const MAXW = ['off', 20, 25, 30, 35, 40, 45, 50, 55, 60, 'default'];
 const SPEEDS = [1, 2, 4, 8, 16, 32];
 const $ = id => document.getElementById(id);
@@ -104,6 +124,12 @@ const maxWaitText = v => v <= 19 ? 'off' : v >= 61 ? `default ${3 * (S.floors - 
 const OUT = { demand: v => `${v}%`, max_wait: maxWaitText };
 
 function setNote(text, err = false) { $('note').textContent = text; $('note').classList.toggle('err', err); }
+// A picture from older settings is dimmed until the next run, so it never passes for the current settings.
+function changed() {
+  if (!DATA) return;
+  stop(); $('pic').classList.add('stale');
+  setNote('Settings changed: press Run to update the picture.');
+}
 
 function sync() {
   for (const k of SLIDERS) { $(k).value = S[k]; $(`${k}-v`).textContent = (OUT[k] || String)(S[k]); }
@@ -121,23 +147,23 @@ function buildControls() {
   for (const k of SLIDERS) $(k).addEventListener('input', e => {
     S[k] = +e.target.value; S.preset = null;
     if (GEN.includes(k)) S.requests = null;
-    sync();
+    sync(); changed();
   });
-  $('pattern').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.pattern = b.dataset.v; S.requests = null; S.preset = null; sync(); });
-  $('layout').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.layout = b.dataset.v; S.preset = null; sync(); });
+  $('pattern').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.pattern = b.dataset.v; S.requests = null; S.preset = null; sync(); changed(); });
+  $('layout').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.layout = b.dataset.v; S.preset = null; sync(); changed(); });
   $('schedulers').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     const v = b.dataset.v, on = S.schedulers.includes(v);
     if (on && S.schedulers.length === 1) return setNote('Keep at least one scheduler.');
     if (!on && S.schedulers.length === 3) return setNote('Compare at most 3 schedulers.');
     S.schedulers = on ? S.schedulers.filter(s => s !== v) : CHOICES.filter(s => s === v || S.schedulers.includes(s));
-    setNote(''); sync();
+    setNote(''); sync(); changed();
   });
   $('presets').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b || !CAT) return;
     const p = CAT.presets[b.dataset.v];
     Object.assign(S, { dwell_time: 0, seed: 1, max_wait: 61, layout: 'all', requests: null, demand: S.demand, pattern: S.pattern, run_length: S.run_length }, p);
-    S.preset = b.dataset.v; setNote(''); sync();
+    S.preset = b.dataset.v; sync(); run();
   });
   $('run').onclick = run;
   $('load').onclick = () => $('file').click();
@@ -186,7 +212,7 @@ function load(data) {
   if (!data || data.format !== 1 || !Array.isArray(data.traces) || !data.traces.length) throw new Error('expected format 1 with a list of traces');
   const ids = data.traces.map(t => t.passengers.map(p => p.id).join(','));
   if (ids.some(x => x !== ids[0])) throw new Error('the traces do not share their passengers');
-  stop(); DATA = data; results = false; fi = 0;
+  stop(); DATA = data; results = false; fi = 0; $('pic').classList.remove('stale');
   PAX = data.traces.map(t => new Map(t.passengers.map(p => [p.id, p])));
   const T = Math.max(...data.traces.map(t => t.units.length)), at = new Map();
   data.traces[0].assignments.forEach((a, j) => { if (!at.has(a.t)) at.set(a.t, []); at.get(a.t).push(j); });
@@ -351,16 +377,140 @@ function resultsView() {
   return tx(620, 64, `results: ${settingsLabel(DATA.traces[0])}`, { size: 40, fill: K.stop, weight: 800 }) + bars() + histogram() + tradeoff();
 }
 
+// The code panel: the core function behind each frame and the lines it runs; views come from GET /api/code.
+let CODE = null, codeOn = false, CK = 0;
+const TOK = /(#.*$)|(f?"[^"]*"|f?'[^']*')|\b(def|class|return|if|elif|else|for|in|while|not|and|or|is|None|True|False|self|raise|break)\b/g;
+function paintPy(line) {
+  let out = '', at = 0;
+  for (const m of line.matchAll(TOK)) { out += esc(line.slice(at, m.index)) + `<i class="${m[1] ? 'c' : m[2] ? 's' : 'k'}">${esc(m[0])}</i>`; at = m.index + m[0].length; }
+  return out + esc(line.slice(at));
+}
+// The branch of floors_to_reach an elevator takes: the same tests, in the same order, as core/scheduler.py.
+function branch(dir, f, s, pdir) {
+  if (!dir) return 'idle';
+  if (dir > 0) return pdir > 0 && s >= f ? 'up-ahead' : pdir < 0 ? 'up-turn' : 'up-behind';
+  return pdir < 0 && s <= f ? 'down-ahead' : pdir > 0 ? 'down-turn' : 'down-behind';
+}
+function codeFor(f) {
+  const tr = DATA.traces[CK], L = i => LET[i], U = tr.units;
+  if (f.a >= 0) {
+    const a = tr.assignments[f.a], p = PAX[CK].get(a.passenger);
+    if (a.rule === 'turn') return { v: 'turn', hl: ['turn'], why: `${p.id}: turn ${a.turn}, so elevator ${L(a.pick)}, wherever it is` };
+    if (a.rule === 'floors') {
+      const st = stateAt(tr, f), pd = Math.sign(p.dest - p.source), b = i => branch(st.dirs[i], st.floors[i], p.source, pd);
+      const alt = a.offered.filter(i => i !== a.pick).map(b).filter(x => x !== b(a.pick));
+      return { v: 'floors', hl: [b(a.pick)], alt, why: `${p.id}: ${a.offered.map(i => `${L(i)} ${a.scores[i]}`).join(', ')} floors, so ${L(a.pick)} is nearest` };
+    }
+    const sums = (a.trials || []).map(t => `${L(t.elevator)} ${short(t.with.sum)} - ${short(t.without.sum)} = ${short(a.scores[t.elevator])}`);
+    return { v: 'cost', hl: ['trial'], why: `${p.id}: ${sums.join('; ')}, so ${L(a.pick)} adds least` };
+  }
+  if (f.t > U.length - 1) return { v: 'clock', hl: ['done'], why: 'Every request served and every elevator idle: the run ends' };
+  const u = U[f.t], prev = f.t > 0 ? U[f.t - 1] : null;
+  const rev = prev ? u.dirs.findIndex((d, i) => d && d === -prev.dirs[i]) : -1;
+  if (rev >= 0) return { v: 'moving', hl: ['reverse'], why: `Time ${f.t}: elevator ${L(rev)} has no stop ahead, so it reverses` };
+  const ev = u.events.filter(e => e[0] !== 'assigned');
+  if (ev.length) return { v: 'step', hl: [...new Set(ev.map(e => e[0] === 'arrived' ? 'unload' : 'board'))],
+    why: `Time ${f.t}: ` + ev.slice(0, 3).map(e => `${e[1]} ${e[0]} on ${L(e[2])} at floor ${e[3]}`).join(', ') + (ev.length > 3 ? ', ...' : '') };
+  return { v: 'clock', hl: ['log', 'move'], why: `Time ${f.t}: log every elevator's floor, then step each one` };
+}
+function renderCode() {
+  const show = codeOn && CODE && DATA && !results;
+  document.body.classList.toggle('code', !!show);
+  $('code').classList.toggle('open', !!show);
+  $('code-btn').classList.toggle('on', codeOn);
+  if (!show) return;
+  CK = Math.min(CK, DATA.traces.length - 1);
+  const c = codeFor(F[fi]), v = CODE[c.v], pick = g => g.flatMap(n => v.groups[n] || []);
+  const hot = new Set(pick(c.hl)), alt = new Set(pick(c.alt || []));
+  $('code-tabs').innerHTML = DATA.traces.length < 2 ? '' : DATA.traces.map((t, k) => `<button data-k="${k}" class="${k === CK ? 'on' : ''}">${esc(NAMES[t.scheduler] || t.scheduler)}</button>`).join('');
+  $('code-file').textContent = `${v.file}, ${v.name}`;
+  $('code-why').textContent = c.why;
+  const box = $('code-lines');
+  box.innerHTML = v.lines.map((l, i) => `<div class="ln${hot.has(i) ? ' hl' : alt.has(i) ? ' alt' : ''}"><b>${v.start + i}</b><span>${paintPy(l) || ' '}</span></div>`).join('');
+  const lit = box.querySelectorAll('.hl'), last = lit[lit.length - 1];
+  box.scrollTop = last && last.offsetTop + last.offsetHeight > box.clientHeight ? Math.max(0, lit[0].offsetTop - 140) : 0;
+}
+// Narration: the sentence for a frame, spoken by Kokoro through GET /api/say; clips for the next frames load ahead.
+const SAY = { off: true, clips: new Map(), audio: null, busy: false };
+const spokenFloor = n => `floor ${n}`;
+function sayFor(f) {
+  const c = codeFor(f), tr = DATA.traces[CK], L = i => LET[i];
+  if (f.a >= 0) {
+    const a = tr.assignments[f.a], p = PAX[CK].get(a.passenger), to = `${p.id} asks to go from ${spokenFloor(p.source)} to ${spokenFloor(p.dest)}.`;
+    if (a.rule === 'turn') return `${to} Round robin gives turn ${a.turn} to elevator ${L(a.pick)}, wherever it is.`;
+    if (a.rule === 'floors') return `${to} Nearest car counts floors: ${a.offered.map(i => `${L(i)}, ${a.scores[i]}`).join('; ')}. It picks ${L(a.pick)}.`;
+    const parts = (a.trials || []).map(t => `on ${L(t.elevator)}, ${short(t.with.sum)} minus ${short(t.without.sum)} is ${short(a.scores[t.elevator])}`);
+    return `${to} Lowest cost runs a copy of each elevator. The cost ${parts.join('; ')}. ${L(a.pick)} adds least.`;
+  }
+  if (c.v === 'clock' && c.hl.includes('done')) return f.t === tr.units.length ? 'Every passenger has arrived. The run ends.' : null;
+  if (c.v !== 'moving' && c.v !== 'step') return null;
+  // Boardings and arrivals first, then any reversal, so a time unit with both says both.
+  const ev = tr.units[f.t].events.filter(e => e[0] !== 'assigned');
+  const said = ev.map(e => `${e[1]} ${e[0] === 'arrived' ? 'arrives' : 'boards'} on ${L(e[2])} at ${spokenFloor(e[3])}`);
+  if (c.v === 'moving') said.push(c.why.replace(/^Time \d+: e/, 'E'));
+  return `Time ${f.t}. ${said.join('. ')}.`;
+}
+function clipFor(text) {
+  if (!SAY.clips.has(text)) SAY.clips.set(text, fetch(`api/say?text=${encodeURIComponent(text)}`).then(r => r.ok ? r.blob() : r.json().then(b => Promise.reject(new Error(b.error)))).then(b => URL.createObjectURL(b)));
+  return SAY.clips.get(text);
+}
+function preload(from, n = 6) {
+  for (let j = from, got = 0; j < F.length && got < n; j++) { const t = sayFor(F[j]); if (t) { clipFor(t).catch(() => {}); got++; } }
+}
+async function speak(text) {
+  if (SAY.audio) SAY.audio.pause();
+  if (!text) return;
+  SAY.busy = true;
+  try {
+    const url = await clipFor(text);
+    if (SAY.off) return;
+    SAY.audio = new Audio(url);
+    await new Promise(done => { SAY.audio.onended = done; SAY.audio.onpause = done; SAY.audio.play().catch(done); });
+  } catch (err) {
+    setNote(`Voice: ${err.message}`, true); SAY.off = true; $('voice-btn').classList.remove('on');
+  } finally { SAY.busy = false; }
+}
+function narrate() { if (!SAY.off && DATA && !results) { const t = sayFor(F[fi]); preload(fi + 1); return speak(t); } return Promise.resolve(); }
+function toggleVoice() {
+  if (location.protocol === 'file:') return setNote('The voice needs elevator-sim serve and reel serve.');
+  SAY.off = !SAY.off; $('voice-btn').classList.toggle('on', !SAY.off);
+  if (SAY.off) { if (SAY.audio) SAY.audio.pause(); } else { setNote('Voice on: Kokoro through reel serve on port 8350.'); narrate(); }
+}
+$('voice-btn').onclick = toggleVoice;
+// Makes every clip of the loaded run for every scheduler, one at a time, so playback never waits on Kokoro.
+async function loadVoice() {
+  if (!DATA || location.protocol === 'file:') return setNote('Run something first, with elevator-sim serve and reel serve going.');
+  const keep = CK, texts = new Set();
+  for (CK = 0; CK < DATA.traces.length; CK++) for (const f of F) { const t = sayFor(f); if (t) texts.add(t); }
+  CK = keep;
+  let n = 0;
+  for (const t of texts) {
+    setNote(`Loading the voice: ${n} of ${texts.size} clips...`);
+    try { await clipFor(t); } catch (err) { SAY.clips.delete(t); return setNote(`Voice: ${err.message}`, true); }
+    n++;
+  }
+  setNote(`Voice loaded: ${texts.size} clips. Press V, then Play.`);
+}
+$('voice-load').onclick = () => { $('voice-load').blur(); loadVoice(); };
+
+function toggleCode() {
+  if (!CODE) return setNote(location.protocol === 'file:' ? 'The code view needs elevator-sim serve.' : 'The code view is still loading.');
+  codeOn = !codeOn; render();
+}
+$('code-btn').onclick = toggleCode;
+$('code-tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { CK = +b.dataset.k; b.blur(); renderCode(); } });
+
 // Drawing, playback and the 1920 by 1080 fit.
 function render() {
   $('results').classList.toggle('on', results);
+  renderCode();
   if (!DATA) {
     $('pic').innerHTML = tx(660, 200, 'Pick a preset or set the sliders, choose schedulers, then press Run.', { size: 36 }) +
       tx(660, 260, 'Opened as a file? Load a trace from elevator-sim trace.', { size: 32, fill: K.muted });
     $('count').textContent = '';
     return;
   }
-  const f = F[fi], n = DATA.traces.length, W = 1300 / n;
+  const f = F[fi], n = DATA.traces.length, W = (document.body.classList.contains('code') ? 1240 : 1300) / n;
   $('scrub').value = fi;
   $('count').textContent = `step ${fi + 1} of ${F.length}`;
   if (results) { $('pic').innerHTML = resultsView(); return; }
@@ -371,20 +521,24 @@ function render() {
   }
   $('pic').innerHTML = s;
 }
-function go(i) { fi = clamp(i, 0, F.length - 1); render(); }
-function stop() { if (timer) clearInterval(timer); timer = null; $('play').textContent = 'Play'; }
+function go(i, quiet = false) { fi = clamp(i, 0, F.length - 1); render(); if (!quiet) narrate(); }
+function stop() { if (timer) clearTimeout(timer); timer = null; $('play').textContent = 'Play'; }
+// With the voice on, play visits every frame that has a sentence and waits for it; plain time units keep the speed setting.
 function play() {
   if (!DATA) return;
   if (timer) return stop();
   results = false;
   if (fi >= F.length - 1) fi = 0;
   $('play').textContent = 'Pause';
-  timer = setInterval(() => {
+  const tick = async () => {
     let j = fi + 1;
-    while (j < F.length - 1 && F[j].a >= 0) j++;
-    if (j >= F.length - 1) { stop(); go(F.length - 1); results = true; render(); return; }
-    go(j);
-  }, 1000 / SPEEDS[speed]);
+    if (SAY.off) while (j < F.length - 1 && F[j].a >= 0) j++;
+    if (j >= F.length - 1) { stop(); go(F.length - 1, true); results = true; render(); return; }
+    go(j, true);
+    if (!SAY.off) await narrate();
+    if (timer !== null) timer = setTimeout(tick, 1000 / SPEEDS[speed]);
+  };
+  timer = setTimeout(tick, 0);
 }
 function nextAssignment() {
   stop(); results = false;
@@ -409,6 +563,8 @@ addEventListener('keydown', e => {
   else if (k === 'ArrowRight') step(1);
   else if (k === 'ArrowLeft') step(-1);
   else if (k === 'r' || k === 'R') { if (DATA) { stop(); results = !results; render(); } }
+  else if (k === 'c' || k === 'C') toggleCode();
+  else if (k === 'v' || k === 'V') toggleVoice();
   else return;
   e.preventDefault();
 });
@@ -423,7 +579,10 @@ $('speed').textContent = `Speed ${SPEEDS[speed]}`;
 sync();
 render();
 if (location.protocol === 'file:') fileMode();
-else fetch('api/scenarios').then(r => r.json()).then(c => { CAT = c; setNote('Pick a preset, then press Run.'); }).catch(() => fileMode());
+else {
+  fetch('api/scenarios').then(r => r.json()).then(c => { CAT = c; setNote('Pick a preset, then press Run. C shows the code.'); }).catch(() => fileMode());
+  fetch('api/code').then(r => r.json()).then(c => { CODE = c.views; }).catch(() => {});
+}
 </script>
 </body>
 </html>

@@ -8,18 +8,20 @@ import math
 import time
 from dataclasses import dataclass, replace
 
-from .config import Config
-from .direction import run_until_idle
-from .extensions.express import express_bank, servable
-from .extensions.zoning import Zoned, zone_floor
+from ..core.config import Config
+from ..core.direction import run_until_idle
+from ..extensions.express import express_bank, servable
+from ..extensions.zoning import Zoned, zone_floor
 from .files import parse_requests
-from .models import Elevator, Event, Passenger, Request
-from .scenarios import scenarios
-from .scheduler import NAMES, INFINITE_COST, LowestCost, NearestCar, RoundRobin, clone_elevator, floors_to_reach
-from .scheduler import lowest_index, make_scheduler, trial_limit
-from .simulation import Simulation
-from .stats import summarize
-from .traffic import PATTERNS, Segment, generate
+from ..core.models import Elevator, Event, Passenger, Request
+from ..benchmark.scenarios import scenarios
+from ..core.scheduler import INFINITE_COST, LowestCost, NearestCar, RoundRobin, clone_elevator, floors_to_reach
+from ..benchmark.schedulers import NAMES
+from ..core.scheduler import lowest_index, trial_limit
+from ..benchmark.schedulers import make_scheduler
+from ..core.simulation import Simulation
+from ..benchmark.stats import summarize
+from ..benchmark.traffic import PATTERNS, Segment, generate
 
 FORMAT = 1
 MAX_TIME_UNITS = 5000
@@ -41,6 +43,8 @@ STUCK = "stuck"  # a trial allocation that never finished, so its cost is infini
 
 # S clears elevator A to floor 2, R rides B up to 18; at time 13 the state matches the deck's Q example.
 Q_EXAMPLE = "time,id,source,dest\n0,S,1,2\n1,R,1,18\n13,P,10,2\n13,Q,9,16\n"
+# Three passengers on floor 2: nearest car sends all to A, round robin splits them, lowest cost sends both down trips to B.
+SMALLEST = "time,id,source,dest\n0,p1,2,4\n0,p2,2,1\n1,p3,2,1\n"
 
 PRESETS = {
     "Rush hour": {"floors": 20, "elevators": 4, "capacity": 10, "demand": 100, "pattern": "up-peak", "run_length": 300},
@@ -50,6 +54,7 @@ PRESETS = {
     "Express, 40 floors": {"floors": 40, "elevators": 4, "capacity": 10, "demand": 100, "pattern": "up-peak",
                            "run_length": 300, "layout": "express"},
     "Two elevators, Q": {"requests": Q_EXAMPLE, "floors": 20, "elevators": 2, "capacity": 10},
+    "Smallest, 4 floors": {"requests": SMALLEST, "floors": 4, "elevators": 2, "capacity": 4},
 }
 
 

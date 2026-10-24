@@ -1,7 +1,7 @@
 import pytest
 
-from elevator_sim.models import Passenger, Request, Result
-from elevator_sim.stats import Spread, format_summary, spread, summarize
+from elevator_sim.core.models import Passenger, Request, Result
+from elevator_sim.benchmark.stats import Spread, format_summary, spread, summarize
 
 
 def make_passenger(pid, time, boarded, arrived, elevator):

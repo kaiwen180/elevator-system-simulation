@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from elevator_sim.config import Config
-from elevator_sim.traffic import Segment, daily_profile, generate
+from elevator_sim.core.config import Config
+from elevator_sim.benchmark.traffic import Segment, daily_profile, generate
 
 TYPICAL = Config(floors=20, elevators=4, capacity=10)
 

@@ -6,7 +6,7 @@ requires-python = ">=3.12"
 dependencies = []
 
 [project.scripts]
-elevator-sim = "elevator_sim.cli:main"
+elevator-sim = "elevator_sim.app.cli:main"
 
 [dependency-groups]
 dev = ["pytest>=8"]

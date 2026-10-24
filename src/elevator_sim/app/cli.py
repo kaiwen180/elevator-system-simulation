@@ -7,16 +7,16 @@ import json
 import sys
 from pathlib import Path
 
-from .config import Config
-from .extensions.fairness import DEFAULT_SCENARIOS, fairness_study, fairness_table
-from .scheduler import NAMES, SCHEDULERS, make_scheduler
+from ..core.config import Config
+from ..extensions.fairness import DEFAULT_SCENARIOS, fairness_study, fairness_table
+from ..benchmark.schedulers import NAMES, SCHEDULERS, make_scheduler
 from .files import read_requests, write_logs
-from .models import Request
-from .scenarios import compare, scenarios
-from .simulation import Simulation
-from .stats import format_summary, summarize
+from ..core.models import Request
+from ..benchmark.scenarios import compare, scenarios
+from ..core.simulation import Simulation
+from ..benchmark.stats import format_summary, summarize
 from .trace import LAYOUTS, trace_runs
-from .traffic import PATTERNS
+from ..benchmark.traffic import PATTERNS
 
 DEFAULT_FLOORS = 20
 BAD_INPUT = 2

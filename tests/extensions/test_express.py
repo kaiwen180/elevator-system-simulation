@@ -1,13 +1,13 @@
 import pytest
 from conftest import passenger
 
-from elevator_sim.config import Config
+from elevator_sim.core.config import Config
 from elevator_sim.extensions.express import express_bank, servable
-from elevator_sim.invariants import assert_valid, violations
-from elevator_sim.models import Elevator, Event, Passenger, Request, Result
-from elevator_sim.scenarios import run_scenario, scenarios
-from elevator_sim.scheduler import NAMES, make_scheduler
-from elevator_sim.simulation import Simulation, eligible
+from elevator_sim.benchmark.invariants import assert_valid, violations
+from elevator_sim.core.models import Elevator, Event, Passenger, Request, Result
+from elevator_sim.benchmark.scenarios import run_scenario, scenarios
+from elevator_sim.benchmark.schedulers import NAMES, make_scheduler
+from elevator_sim.core.simulation import Simulation, eligible
 
 BANK = express_bank(40, local=2, express=2, split=20)
 CONFIG = Config(floors=40, elevators=4, capacity=10, served_floors=BANK)

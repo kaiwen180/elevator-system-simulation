@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-from ..scenarios import Scenario, scenarios, table_row
-from ..scheduler import LowestCost
-from ..simulation import Simulation
-from ..stats import summarize
+from ..benchmark.scenarios import Scenario, scenarios, table_row
+from ..core.scheduler import LowestCost
+from ..core.simulation import Simulation
+from ..benchmark.stats import summarize
 
 DEFAULT_SCENARIOS = ("20f-4x10-demand100-interfloor", "20f-4x10-demand100-up-peak")
 DEFAULT_MAX_WAITS = (None, 57, 40, 30, 20)

@@ -4,26 +4,32 @@ This file is the contract every module follows. If code and this file disagree, 
 
 ## Modules: one idea each
 
+Four folders under `src/elevator_sim/`. `core/` is the algorithm and imports nothing outside itself; read it in the order of the table.
+
 | Module | The one idea it holds |
 |---|---|
-| `models.py` | Data only: `Request`, `Passenger`, `Elevator`, `Event`, `Result`, `Direction` |
-| `config.py` | Building and elevator bank settings, including the floors each elevator serves, checked on creation |
-| `direction.py` | Direction logic for one elevator: collective control, boarding, dwell time |
-| `scheduler.py` | The scheduler picks the elevator for a new passenger: round robin, nearest car, lowest cost |
-| `simulation.py` | The clock: reveal requests, offer each the elevators that serve its trip, assign, log positions, move elevators |
-| `traffic.py` | Synthetic passengers: traffic patterns, demand levels, daily profiles |
-| `files.py` | Read the request file, write the two log files |
-| `stats.py` | Summary numbers for a finished run |
-| `invariants.py` | Checks that a finished run obeyed every rule |
-| `scenarios.py` | The named extreme scenarios and the comparison report |
-| `cli.py` | The command line: `run`, `compare`, `fairness`, `trace`, `serve` |
-| `trace.py` | A run as JSON for the live page, and the parameter checks the command line and the server share |
-| `server.py` | The live page's server: standard library only, bound to 127.0.0.1 |
+| `core/models.py` | Data only: `Request`, `Passenger`, `Elevator`, `Event`, `Result`, `Direction` |
+| `core/config.py` | Building and elevator bank settings, including the floors each elevator serves, checked on creation |
+| `core/simulation.py` | The clock: reveal requests, offer each the elevators that serve its trip, assign, log positions, move elevators |
+| `core/direction.py` | Direction logic for one elevator: collective control, boarding, dwell time |
+| `core/scheduler.py` | The scheduler picks the elevator for a new passenger: round robin, nearest car, lowest cost |
+| `benchmark/schedulers.py` | Schedulers by name: `make_scheduler`, `SCHEDULERS`, `NAMES` |
+| `benchmark/traffic.py` | Synthetic passengers: traffic patterns, demand levels, daily profiles |
+| `benchmark/stats.py` | Summary numbers for a finished run |
+| `benchmark/invariants.py` | Checks that a finished run obeyed every rule |
+| `benchmark/scenarios.py` | The named extreme scenarios and the comparison report |
 | `extensions/zoning.py` | The zoned scheduler: bands of floors above the lobby, lowest cost inside a band |
 | `extensions/express.py` | Express layouts for `Config.served_floors`: `express_bank` and `servable` |
 | `extensions/fairness.py` | The fairness against efficiency study for lowest cost |
+| `app/files.py` | Read the request file, write the two log files |
+| `app/cli.py` | The command line: `run`, `compare`, `fairness`, `trace`, `serve` |
+| `app/trace.py` | A run as JSON for the live page, and the parameter checks the command line and the server share |
+| `app/server.py` | The live page's server: standard library only, bound to 127.0.0.1 |
+| `app/code_view.py` | The core functions the live page's Code panel shows, and the line groups each moment lights |
+| `app/narration.py` | Spoken clips for the live page, passed through from a Kokoro server on this machine |
+| `app/ui/index.html` | The live page |
 
-Dependencies point one way: `models` and `config` at the bottom, `direction` above them, `scheduler` and `simulation` above that, `scenarios` and `cli` on top. `zoning` sits beside `scheduler` (which builds it by name), `express` below `scenarios`, and `fairness` between `scenarios` and `cli`. `trace` sits above `scenarios`, and `server` above `trace`.
+Dependencies point one way: `core` at the bottom, `benchmark` and `extensions` above it, `app` on top. Inside `core`, `models` and `config` sit at the bottom, `direction` above them, and `scheduler` and `simulation` above that. `zoning` builds on `core/scheduler` and is built by name in `benchmark/schedulers`; `express` sits below `scenarios`, and `fairness` between `scenarios` and `app/cli`.
 
 ## One time unit
 
@@ -113,8 +119,10 @@ Each recorded pick is checked against the scheduler's own choice. Limits keep on
 
 | Route | Returns |
 |---|---|
-| `GET /` | The page, `src/elevator_sim/ui/index.html` |
+| `GET /` | The page, `src/elevator_sim/app/ui/index.html` |
 | `GET /api/scenarios` | The named scenarios, the schedulers, the presets, the patterns, the defaults and the limits |
+| `GET /api/code` | The core functions the Code panel shows, read from the source at request time, and the lines each moment lights |
+| `GET /api/say?text=` | A spoken clip of up to 400 characters from the Kokoro server at `ELEVATOR_SIM_VOICE_URL` (default `http://127.0.0.1:8350`, local hosts only); 503 if none answers |
 | `POST /api/run` | Traces in the format above |
 
 `POST /api/run` takes a JSON object with one passenger source: `scenario` (a name; only `dwell_time` may change), `requests` (request file text, or a list of `{time, id, source, dest}`), or neither (generate with `demand` in percent, `pattern`, `seed`, `run_length`). Building settings are `floors`, `elevators`, `capacity`, `dwell_time` and `layout` (`all`, or `express`: half the elevators local below the middle floor, half express above it). `schedulers` lists 1 to 3 names; `max_wait` is `default`, `off` or a whole number, and applies to lowest cost and zoned. Bad input returns 400 with `{"error": "..."}`, the same message `Config`, the request parser and the limits give. A body over 200,000 bytes returns 413; more than 2 runs at once returns 429.

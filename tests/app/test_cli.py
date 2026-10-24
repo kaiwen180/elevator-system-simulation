@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from elevator_sim.cli import main
+from elevator_sim.app.cli import main
 
-EXAMPLE = Path(__file__).parent.parent / "examples" / "requests.csv"
+EXAMPLE = Path(__file__).parent.parent.parent / "examples" / "requests.csv"
 
 
 def header(path):

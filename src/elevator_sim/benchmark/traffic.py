@@ -6,8 +6,8 @@ import math
 import random
 from dataclasses import dataclass
 
-from .config import Config
-from .models import Request
+from ..core.config import Config
+from ..core.models import Request
 
 PATTERNS = ("up-peak", "down-peak", "interfloor")
 LOBBY = 1

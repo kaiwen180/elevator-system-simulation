@@ -1,11 +1,11 @@
 import pytest
 
-from elevator_sim.config import Config
-from elevator_sim.scheduler import SCHEDULERS, make_scheduler
-from elevator_sim.invariants import assert_valid
-from elevator_sim.models import Event, Request
-from elevator_sim.simulation import Simulation
-from elevator_sim.traffic import Segment, generate
+from elevator_sim.core.config import Config
+from elevator_sim.benchmark.schedulers import SCHEDULERS, make_scheduler
+from elevator_sim.benchmark.invariants import assert_valid
+from elevator_sim.core.models import Event, Request
+from elevator_sim.core.simulation import Simulation
+from elevator_sim.benchmark.traffic import Segment, generate
 
 
 def run(config, requests, scheduler="lowest-cost", max_time_units=1_000_000):

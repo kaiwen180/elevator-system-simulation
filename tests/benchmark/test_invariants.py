@@ -2,9 +2,9 @@ import copy
 
 import pytest
 
-from elevator_sim.config import Config
-from elevator_sim.invariants import assert_valid, violations
-from elevator_sim.models import Event, Passenger, Request, Result
+from elevator_sim.core.config import Config
+from elevator_sim.benchmark.invariants import assert_valid, violations
+from elevator_sim.core.models import Event, Passenger, Request, Result
 
 CONFIG = Config(floors=5, elevators=1, capacity=10, dwell_time=0)
 

@@ -1,4 +1,4 @@
-from elevator_sim.models import Passenger, Request
+from elevator_sim.core.models import Passenger, Request
 
 
 def passenger(source: int, dest: int, time: int = 0, id: str = "p1") -> Passenger:

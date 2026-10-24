@@ -1,6 +1,6 @@
 import pytest
 
-from elevator_sim.cli import main
+from elevator_sim.app.cli import main
 from elevator_sim.extensions.fairness import (
     DEFAULT_DWELL_TIMES, DEFAULT_MAX_WAITS, DEFAULT_SCENARIOS, fairness_study, fairness_table,
 )

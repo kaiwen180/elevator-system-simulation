@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from .models import Result
+from ..core.models import Result
 
 
 @dataclass(frozen=True)

@@ -130,25 +130,3 @@ class LowestCost:
         if self.max_wait is None:
             return p.total
         return p.total + self.penalty * max(0, p.wait - self.max_wait)
-
-
-SCHEDULERS = ("round-robin", "nearest-car", "lowest-cost")
-NAMES = SCHEDULERS + ("lowest-cost-nocap", "zoned")
-
-
-def make_scheduler(name: str, config: Config) -> Scheduler:
-    """Build a scheduler by name; `lowest-cost-nocap` turns the maximum wait time off."""
-    if name == "zoned":
-        from .extensions.zoning import Zoned  # imported here because zoning builds on LowestCost above
-        return Zoned(config)
-    if name == "round-robin":
-        return RoundRobin(config)
-    if name == "nearest-car":
-        return NearestCar(config)
-    if name == "lowest-cost":
-        return LowestCost(config)
-    if name == "lowest-cost-nocap":
-        scheduler = LowestCost(config, max_wait=None)
-        scheduler.name = "lowest-cost-nocap"
-        return scheduler
-    raise ValueError(f"unknown scheduler {name!r}, expected one of {', '.join(NAMES)}")

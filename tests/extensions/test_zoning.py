@@ -4,14 +4,15 @@ from pathlib import Path
 import pytest
 from conftest import passenger
 
-from elevator_sim.cli import main
-from elevator_sim.config import Config
+from elevator_sim.app.cli import main
+from elevator_sim.core.config import Config
 from elevator_sim.extensions.zoning import Zoned, bands, elevator_bands, zone_floor
-from elevator_sim.invariants import assert_valid
-from elevator_sim.models import Elevator
-from elevator_sim.scheduler import NAMES, LowestCost, make_scheduler
-from elevator_sim.simulation import Simulation
-from elevator_sim.traffic import Segment, generate
+from elevator_sim.benchmark.invariants import assert_valid
+from elevator_sim.core.models import Elevator
+from elevator_sim.core.scheduler import LowestCost
+from elevator_sim.benchmark.schedulers import NAMES, make_scheduler
+from elevator_sim.core.simulation import Simulation
+from elevator_sim.benchmark.traffic import Segment, generate
 
 EXAMPLE = Path(__file__).parent.parent.parent / "examples" / "requests.csv"
 

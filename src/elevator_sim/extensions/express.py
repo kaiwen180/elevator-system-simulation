@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from ..config import Config
-from ..models import Request
-from ..traffic import LOBBY
+from ..core.config import Config
+from ..core.models import Request
+from ..benchmark.traffic import LOBBY
 
 
 def express_bank(floors: int, local: int, express: int, split: int) -> tuple[frozenset[int], ...]:

@@ -1,6 +1,6 @@
 import pytest
 
-from elevator_sim.config import Config
+from elevator_sim.core.config import Config
 
 
 def test_defaults_match_design():

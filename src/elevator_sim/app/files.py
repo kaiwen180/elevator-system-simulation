@@ -6,7 +6,7 @@ import csv
 import io
 from pathlib import Path
 
-from elevator_sim.models import Request, Result
+from elevator_sim.core.models import Request, Result
 
 REQUEST_HEADER = ["time", "id", "source", "dest"]
 EVENT_HEADER = ["time", "passenger", "elevator", "floor", "event"]

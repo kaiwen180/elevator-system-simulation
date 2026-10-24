@@ -6,20 +6,20 @@ Every test is written first and seen to fail (red), then the code makes it pass 
 
 | Layer | File | What it proves |
 |---|---|---|
-| Config | `tests/test_config.py` | Bad settings are refused, defaults match the design |
-| Input and output | `tests/test_files.py` | Request files parse, bad rows name their line, logs have the right shape |
-| Direction logic | `tests/test_direction.py` | One elevator follows collective control, boards, unloads, respects capacity and dwell time |
-| Scheduler | `tests/test_scheduler.py` | Each scheduler picks the elevator the design says, and never changes an elevator |
-| Simulation | `tests/test_simulation.py` | The clock, worked examples with exact times, no peeking ahead |
-| Traffic | `tests/test_traffic.py` | Patterns, demand levels and profiles produce what they claim |
-| Statistics | `tests/test_stats.py` | Min, max, mean and percentiles are right |
-| Invariants | `tests/test_invariants.py` | The rule checker catches each kind of broken run |
-| Scenarios | `tests/test_scenarios.py` | Every extreme scenario runs to the end and obeys every rule |
-| Command line | `tests/test_cli.py` | The command reads a file and writes the two logs and a summary; the earlier flags still work |
+| Config | `tests/core/test_config.py` | Bad settings are refused, defaults match the design |
+| Input and output | `tests/app/test_files.py` | Request files parse, bad rows name their line, logs have the right shape |
+| Direction logic | `tests/core/test_direction.py` | One elevator follows collective control, boards, unloads, respects capacity and dwell time |
+| Scheduler | `tests/core/test_scheduler.py` | Each scheduler picks the elevator the design says, and never changes an elevator |
+| Simulation | `tests/core/test_simulation.py` | The clock, worked examples with exact times, no peeking ahead |
+| Traffic | `tests/benchmark/test_traffic.py` | Patterns, demand levels and profiles produce what they claim |
+| Statistics | `tests/benchmark/test_stats.py` | Min, max, mean and percentiles are right |
+| Invariants | `tests/benchmark/test_invariants.py` | The rule checker catches each kind of broken run |
+| Scenarios | `tests/benchmark/test_scenarios.py` | Every extreme scenario runs to the end and obeys every rule |
+| Command line | `tests/app/test_cli.py` | The command reads a file and writes the two logs and a summary; the earlier flags still work |
 | Zoned scheduler | `tests/extensions/test_zoning.py` | The band split, the choice inside a band, and that zoned runs obey every rule |
 | Express elevators | `tests/extensions/test_express.py` | The served-floor filter, the error for a trip no elevator serves, both 40-floor scenarios, and no stop at an unserved floor |
-| Trace | `tests/test_trace.py` | Traces match `Simulation.run`, each assignment's scores pick the scheduler's elevator, bad parameters are refused, the presets match the named scenarios |
-| Server | `tests/test_server.py` | Each route on a free port: 200 and 400 cases, 127.0.0.1 only, and no request log unless both the flag and the environment allow it |
+| Trace | `tests/app/test_trace.py` | Traces match `Simulation.run`, each assignment's scores pick the scheduler's elevator, bad parameters are refused, the presets match the named scenarios |
+| Server | `tests/app/test_server.py` | Each route on a free port: 200 and 400 cases, 127.0.0.1 only, and no request log unless both the flag and the environment allow it |
 | Fairness study | `tests/extensions/test_fairness.py` | The table shape, and that the default maximum wait time trades mean total time for a shorter longest wait |
 
 ## Extremes
@@ -70,12 +70,12 @@ These are behaviors, not tuned numbers. Each one would show a real bug if it fai
 
 ## Worked examples with exact times
 
-`tests/test_simulation.py` holds hand-checked examples. Each states the expected wait time and total time for every passenger, so a reader can follow the clock by hand.
+`tests/core/test_simulation.py` holds hand-checked examples. Each states the expected wait time and total time for every passenger, so a reader can follow the clock by hand.
 
 1. One elevator, one passenger at the lobby going to floor 5: wait time 0, total time 4.
 2. One elevator at floor 1, a passenger at floor 5 going to floor 1: wait time 4, total time 8.
 3. The spec's sample, with 2 elevators and 60 floors: passenger1 (1 to 51) and passenger2 (1 to 37) at time 0, passenger3 (20 to 1) at time 10.
-4. The two-passenger example from the explainer, checked at the scheduler in `tests/test_scheduler.py`: at time 1, elevator A is at floor 2 going up for P (10 to 2), and elevator B is at floor 13 going up with one passenger in it going to 18. Q asks to go from 9 to 16. Nearest car sends Q to A. Lowest cost sends Q to B, because the incremental cost of Q is 26 on A and 21 on B.
+4. The two-passenger example from the explainer, checked at the scheduler in `tests/core/test_scheduler.py`: at time 1, elevator A is at floor 2 going up for P (10 to 2), and elevator B is at floor 13 going up with one passenger in it going to 18. Q asks to go from 9 to 16. Nearest car sends Q to A. Lowest cost sends Q to B, because the incremental cost of Q is 26 on A and 21 on B.
 5. Dwell time 2: one passenger at the lobby going to floor 3: board at 0, leave at 2, arrive at 4.
 6. Capacity 1, two passengers at the lobby at time 0 going to floors 3 and 5: the first boards at 0, the second waits for the elevator to return.
 

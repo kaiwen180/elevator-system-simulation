@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from .config import Config
-from .models import Event, Passenger, Request, Result
+from ..core.config import Config
+from ..core.models import Event, Passenger, Request, Result
 
 KINDS = ("assigned", "boarded", "arrived")
 SHOWN = 10

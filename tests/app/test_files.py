@@ -1,7 +1,7 @@
 import pytest
 
-from elevator_sim.files import events_csv, parse_requests, positions_csv, read_requests, write_logs
-from elevator_sim.models import Event, Request, Result
+from elevator_sim.app.files import events_csv, parse_requests, positions_csv, read_requests, write_logs
+from elevator_sim.core.models import Event, Request, Result
 
 SAMPLE = """time,id,source,dest
 0,passenger1,1,51

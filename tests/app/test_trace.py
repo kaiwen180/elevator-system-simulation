@@ -3,19 +3,19 @@ from pathlib import Path
 
 import pytest
 
-from elevator_sim.cli import main
-from elevator_sim.config import Config
+from elevator_sim.app.cli import main
+from elevator_sim.core.config import Config
 from elevator_sim.extensions.zoning import Zoned
-from elevator_sim.files import parse_requests
-from elevator_sim.models import Request
-from elevator_sim.scheduler import make_scheduler
-from elevator_sim.simulation import Simulation
-from elevator_sim.stats import summarize
-from elevator_sim.scenarios import scenarios
-from elevator_sim.trace import MAX_PASSENGERS, PRESETS, Q_EXAMPLE, build_run, build_scheduler, record, trace_runs
-from elevator_sim.traffic import Segment, generate
+from elevator_sim.app.files import parse_requests
+from elevator_sim.core.models import Request
+from elevator_sim.benchmark.schedulers import make_scheduler
+from elevator_sim.core.simulation import Simulation
+from elevator_sim.benchmark.stats import summarize
+from elevator_sim.benchmark.scenarios import scenarios
+from elevator_sim.app.trace import MAX_PASSENGERS, PRESETS, Q_EXAMPLE, build_run, build_scheduler, record, trace_runs
+from elevator_sim.benchmark.traffic import Segment, generate
 
-EXAMPLE = Path(__file__).parent.parent / "examples" / "requests.csv"
+EXAMPLE = Path(__file__).parent.parent.parent / "examples" / "requests.csv"
 TWO = Config(floors=20, elevators=2)
 COST = 3  # position of the cost in a trial row: id, boarded, arrived, cost
 

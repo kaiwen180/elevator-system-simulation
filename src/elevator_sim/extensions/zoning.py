@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from ..config import Config
-from ..models import Elevator, Passenger
-from ..scheduler import LowestCost, lowest_index
-from ..traffic import LOBBY
+from ..core.config import Config
+from ..core.models import Elevator, Passenger
+from ..core.scheduler import LowestCost, lowest_index
+from ..benchmark.traffic import LOBBY
 
 
 def split_evenly(count: int, parts: int) -> list[int]:

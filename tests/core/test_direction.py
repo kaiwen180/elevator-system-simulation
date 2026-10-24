@@ -1,8 +1,8 @@
 from conftest import passenger
 
-from elevator_sim.config import Config
-from elevator_sim.models import Elevator, Direction, Event
-from elevator_sim.direction import choose_direction, run_until_idle, step
+from elevator_sim.core.config import Config
+from elevator_sim.core.models import Elevator, Direction, Event
+from elevator_sim.core.direction import choose_direction, run_until_idle, step
 
 
 def make_elevator(floor=1, direction=Direction.IDLE, capacity=10, inside=(), waiting=()):

@@ -9,10 +9,13 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from .scenarios import scenarios
-from .scheduler import NAMES
+from ..benchmark.scenarios import scenarios
+from ..benchmark.schedulers import NAMES
 from .trace import DEFAULTS, LIMITS, MAX_PASSENGERS, MAX_SCHEDULERS, MAX_TIME_UNITS, PRESETS, trace_runs
-from .traffic import PATTERNS
+from .code_view import code_views
+from . import narration
+from urllib.parse import parse_qs
+from ..benchmark.traffic import PATTERNS
 
 HOST = "127.0.0.1"
 PAGE = Path(__file__).parent / "ui" / "index.html"
@@ -65,6 +68,18 @@ class Handler(BaseHTTPRequestHandler):
             self.send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
         elif route == "/api/scenarios":
             self.send_json(200, catalog())
+        elif route == "/api/code":
+            self.send_json(200, {"views": code_views()})
+        elif route == "/api/say":
+            query = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
+            try:
+                speed = float(query.get("speed", ["1"])[0])
+                body, kind = narration.clip(query.get("text", [""])[0], query.get("voice", ["af_heart"])[0], speed)
+                self.send(200, body, kind)
+            except ValueError as error:
+                self.send_json(400, {"error": str(error)})
+            except OSError:
+                self.send_json(503, {"error": f"no narration server at {narration.voice_url()}; start one with reel serve"})
         else:
             self.send_json(404, {"error": f"no route {route}"})
 

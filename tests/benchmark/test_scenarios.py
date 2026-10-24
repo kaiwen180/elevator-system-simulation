@@ -2,13 +2,13 @@ from dataclasses import replace
 
 import pytest
 
-from elevator_sim.config import Config
-from elevator_sim.scheduler import SCHEDULERS
-from elevator_sim.invariants import assert_valid
-from elevator_sim.models import Request
-from elevator_sim.scenarios import Scenario, compare, run_scenario, scenarios
-from elevator_sim.stats import summarize
-from elevator_sim.traffic import Segment, daily_profile
+from elevator_sim.core.config import Config
+from elevator_sim.benchmark.schedulers import SCHEDULERS
+from elevator_sim.benchmark.invariants import assert_valid
+from elevator_sim.core.models import Request
+from elevator_sim.benchmark.scenarios import Scenario, compare, run_scenario, scenarios
+from elevator_sim.benchmark.stats import summarize
+from elevator_sim.benchmark.traffic import Segment, daily_profile
 
 ALL = scenarios()
 
